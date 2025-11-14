@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Data files
+data/*.json
+!data/toxicity_data_template.json
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+
+# Tests
+.pytest_cache/

@@ -1,0 +1,72 @@
+"""
+LangGraph workflow construction
+"""
+from langgraph.graph import StateGraph, END
+
+from app.graph.state import JSONEditState
+from app.graph.nodes.llm_edit_node import llm_edit_node
+
+def build_graph():
+    """
+    Build and compile the toxicology editing workflow
+    
+    Returns:
+        Compiled LangGraph application
+    """
+    graph = StateGraph(JSONEditState)
+    
+    # Add nodes
+    graph.add_node("edit", llm_edit_node)
+    
+    # Set entry point
+    graph.set_entry_point("edit")
+    
+    # Add edges
+    graph.add_conditional_edges(
+        "edit",
+        _should_continue,
+        {
+            "end": END
+        }
+    )
+    
+    return graph.compile()
+
+def _should_continue(state: JSONEditState) -> str:
+    """
+    Determine if workflow should continue
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        "end" to finish workflow
+    """
+    return "end"
+
+def view_graph(save_path: str = "graph_plot.png", display_image: bool = True):
+    """
+    Visualize the workflow graph
+    
+    Args:
+        save_path: Path to save PNG
+        display_image: Whether to display inline (Jupyter)
+        
+    Returns:
+        PNG image data
+    """
+    app = build_graph()
+    png_data = app.get_graph().draw_mermaid_png()
+    
+    with open(save_path, "wb") as f:
+        f.write(png_data)
+    print(f"✅ Graph saved to: {save_path}")
+    
+    if display_image:
+        try:
+            from IPython.display import Image, display
+            display(Image(png_data))
+        except ImportError:
+            print(f"⚠️ IPython not available. Open {save_path} to view graph.")
+    
+    return png_data

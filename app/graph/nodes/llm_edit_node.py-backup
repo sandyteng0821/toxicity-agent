@@ -1,0 +1,494 @@
+"""
+LLM node for processing toxicology edit instructions
+"""
+import json
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+
+from app.config import DEFAULT_LLM_MODEL
+from app.graph.state import JSONEditState
+from app.services.text_processing import (
+    extract_inci_name,
+    extract_toxicology_sections,
+    clean_llm_json_output
+)
+from app.services.data_updater import merge_json_updates
+
+def llm_edit_node(state: JSONEditState) -> JSONEditState:
+    """
+    Process user input and update JSON using LLM
+    
+    Args:
+        state: Current workflow state
+        
+    Returns:
+        Updated state with modified JSON data
+    """
+    # llm = ChatOllama(model=DEFAULT_LLM_MODEL)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # It works. # need to have API key in .env
+    
+    # Extract INCI name
+    current_inci = extract_inci_name(state["user_input"])
+    if not current_inci:
+        current_inci = state["json_data"].get("inci", "INCI_NAME")
+    state["current_inci"] = current_inci
+    
+    # Try structured data extraction first
+    toxicology_sections = extract_toxicology_sections(state["user_input"])
+    
+    if toxicology_sections:
+        # Direct update without LLM
+        updated_json = state["json_data"].copy()
+        from app.services.data_updater import update_toxicology_data
+        
+        for section, data in toxicology_sections.items():
+            if section in updated_json:
+                updated_json[section] = update_toxicology_data(
+                    updated_json[section], 
+                    data
+                )
+        
+        state["json_data"] = updated_json
+        state["response"] = f"✅ Updated toxicology data for {current_inci}"
+        return state
+    
+    # Use LLM for natural language processing
+    prompt = _build_llm_prompt(state["json_data"], state["user_input"], current_inci)
+    
+    try:
+        result = llm.invoke(prompt)
+        state["response"] = result.content
+        
+        # Parse and merge updates
+        clean_content = clean_llm_json_output(result.content)
+        print(f"DEBUG: Cleaned JSON (first 500 chars):\n{clean_content[:500]}")
+        
+        updates = json.loads(clean_content)
+        merged_json = merge_json_updates(state["json_data"], updates)
+        
+        state["json_data"] = merged_json
+        state["response"] = f"✅ Successfully updated {list(updates.keys())} for {current_inci}"
+        
+    except json.JSONDecodeError as e:
+        error_msg = f"⚠️ LLM output was not valid JSON: {str(e)}"
+        state["response"] = error_msg
+        state["error"] = error_msg
+        print(error_msg)
+    
+    return state
+
+# simplified version
+# def _build_llm_prompt(json_data: dict, user_input: str, current_inci: str) -> str:
+#     """
+#     Build the prompt for LLM processing
+    
+#     Args:
+#         json_data: Current JSON structure
+#         user_input: User's instruction
+#         current_inci: Current ingredient name
+        
+#     Returns:
+#         Formatted prompt string
+#     """
+#     json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+    
+#     return f"""You are a toxicology data specialist for cosmetic ingredients. Update JSON for INCI: {current_inci}
+
+# Current JSON Structure:
+# {json_str}
+
+# User Instruction:
+# {user_input}
+
+# COMMON MODIFICATION TYPES:
+
+# TYPE 1 - Toxicology Data Addition:
+# - Add complete entry to toxicology array
+# - Required fields: reference, data, source, statement, replaced
+# - Action: Return ONLY the new entry to append
+
+# TYPE 2 - DAP Update:
+# - Update "DAP" array with new value
+# - Update "percutaneous_absorption" with supporting data
+# - Return: {{"DAP": [...], "percutaneous_absorption": [...]}}
+
+# TYPE 3 - NOAEL Update:
+# - Update "NOAEL" array with new value
+# - Update "repeated_dose_toxicity" with supporting data
+# - Return: {{"NOAEL": [...], "repeated_dose_toxicity": [...]}}
+
+# CRITICAL RULES:
+# 1. Return ONLY the fields that need updating
+# 2. Do NOT use [...] or "..." placeholders
+# 3. Do NOT return entire JSON - only changed fields
+# 4. Field names must be lowercase ("inci", not "INCI")
+# 5. Return valid JSON only, no explanations
+
+# Now analyze and return ONLY the fields to update with COMPLETE data:
+# """
+
+# # my initial code (agent_graph_toxicity) + prompt fine-tuning
+# def _build_llm_prompt(json_data: dict, user_input: str, current_inci: str) -> str:
+#     """
+#     Build the prompt for LLM processing
+    
+#     Args:
+#         json_data: Current JSON structure
+#         user_input: User's instruction
+#         current_inci: Current ingredient name
+        
+#     Returns:
+#         Formatted prompt string
+#     """
+#     json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+    
+#     return f"""You are a toxicology data specialist for cosmetic ingredients. Update JSON for INCI: {current_inci}
+
+# Current JSON Structure:
+# {json_str}
+
+# User Instruction:
+# {user_input}
+
+# COMMON MODIFICATION TYPES:
+
+# TYPE 1 - Toxicology Data Addition (毒理資料插補):
+# - Add complete entry to toxicology array (acute_toxicity, skin_irritation, etc.)
+# - Required fields: reference, data, source, statement, replaced
+# - Action: Return ONLY the new entry to append
+
+# TYPE 2 - DAP Update:
+# - Update "DAP" array with new value
+# - Update "percutaneous_absorption" array with supporting data
+# - Return: {{"DAP": [...], "percutaneous_absorption": [...]}}
+
+# TYPE 3 - NOAEL Update:
+# - Update "NOAEL" array with new value
+# - Update "repeated_dose_toxicity" array with supporting data
+# - Return: {{"NOAEL": [...], "repeated_dose_toxicity": [...]}}
+
+# CRITICAL RULES:
+# 1. Return ONLY the fields that need to be updated
+# 2. Do NOT use [...] or "..." placeholders - provide actual complete data
+# 3. Do NOT return the entire JSON - only changed fields
+# 4. Field names must be lowercase ("inci", not "INCI")
+# 5. Return valid JSON only, no explanations
+# 6. ⚠️ EXTRACT ALL VALUES FROM THE USER INSTRUCTION - DO NOT COPY FROM EXAMPLES BELOW
+# 7. ⚠️ Examples use placeholders like {{VALUE_FROM_INSTRUCTION}} - YOU MUST REPLACE THESE
+
+# ⚠️ ANTI-COPYING RULES:
+# 1. NEVER use values from the examples below (like 800, Rats, 90-day, PETROLATUM)
+# 2. ALL values must come from the current user instruction for {current_inci}
+# 3. If the instruction says "200 mg/kg bw/day", use 200 (not 800 from examples)
+# 4. If the instruction mentions "OECD SIDS", use that as source (not "echa" from examples)
+# 5. Each ingredient is different - use ONLY the data provided for {current_inci}
+
+# EXAMPLES (with placeholders - DO NOT copy literal values):
+
+# Example 1 (TYPE 3 - NOAEL Update):
+# Input Pattern: "Set NOAEL to [VALUE] [UNIT] from [SOURCE], add repeated dose toxicity study"
+# Output Pattern:
+# {{
+#   "inci": "{current_inci}",
+#   "NOAEL": [
+#     {{
+#       "note": "{{EXTRACT_FROM_INSTRUCTION_OR_NULL}}",
+#       "unit": "{{EXTRACT_UNIT_FROM_INSTRUCTION}}",
+#       "experiment_target": "{{EXTRACT_TARGET_FROM_INSTRUCTION_OR_NULL}}",
+#       "source": "{{EXTRACT_SOURCE_FROM_INSTRUCTION_LOWERCASE}}",
+#       "type": "NOAEL",
+#       "study_duration": "{{EXTRACT_DURATION_FROM_INSTRUCTION_OR_NULL}}",
+#       "value": {{EXTRACT_NUMERIC_VALUE_FROM_INSTRUCTION}}
+#     }}
+#   ],
+#   "repeated_dose_toxicity": [
+#     {{
+#       "reference": {{
+#         "title": "{{EXTRACT_TITLE_FROM_INSTRUCTION}}",
+#         "link": "{{EXTRACT_URL_FROM_INSTRUCTION_OR_NULL}}"
+#       }},
+#       "data": ["{{SUMMARIZE_KEY_FINDINGS_FROM_INSTRUCTION}}"],
+#       "source": "{{EXTRACT_SOURCE_FROM_INSTRUCTION_LOWERCASE}}",
+#       "statement": "{{CREATE_SUMMARY_STATEMENT_FROM_INSTRUCTION}}",
+#       "replaced": {{
+#         "replaced_inci": "",
+#         "replaced_type": ""
+#       }}
+#     }}
+#   ]
+# }}
+
+# Example 2 (TYPE 2 - DAP Update):
+# Input Pattern: "Set DAP to [VALUE]% based on [REASONING]"
+# Output Pattern:
+# {{
+#   "inci": "{current_inci}",
+#   "DAP": [
+#     {{
+#       "note": "{{EXTRACT_NOTE_FROM_INSTRUCTION}}",
+#       "unit": "%",
+#       "experiment_target": null,
+#       "source": "{{DETERMINE_SOURCE_FROM_INSTRUCTION}}",
+#       "type": "DAP",
+#       "study_duration": null,
+#       "value": {{EXTRACT_NUMERIC_VALUE_FROM_INSTRUCTION}}
+#     }}
+#   ],
+#   "percutaneous_absorption": [
+#     {{
+#       "reference": {{
+#         "title": "{{EXTRACT_OR_CREATE_TITLE}}",
+#         "link": "{{EXTRACT_URL_OR_NULL}}"
+#       }},
+#       "data": ["{{EXTRACT_REASONING_FROM_INSTRUCTION}}"],
+#       "source": "{{DETERMINE_SOURCE_FROM_INSTRUCTION}}",
+#       "statement": "{{SUMMARIZE_REASONING}}",
+#       "replaced": {{
+#         "replaced_inci": "",
+#         "replaced_type": ""
+#       }}
+#     }}
+#   ]
+# }}
+
+# ⚠️ CRITICAL: Read the user instruction carefully and extract ALL specific values.
+# DO NOT use example values (800, Rats, 90-day, etc.) - these are just placeholders!
+
+# Now analyze the instruction and return ONLY the fields to update with COMPLETE data extracted from the instruction:
+# """
+
+# def _build_llm_prompt(json_data: dict, user_input: str, current_inci: str) -> str:
+#     """
+#     Build the prompt for LLM processing
+    
+#     Args:
+#         json_data: Current JSON structure
+#         user_input: User's instruction
+#         current_inci: Current ingredient name
+        
+#     Returns:
+#         Formatted prompt string
+#     """
+#     json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+    
+#     return f"""You are a toxicology data specialist for cosmetic ingredients. Update JSON for INCI: {current_inci}
+
+# Current JSON Structure:
+# {json_str}
+
+# User Instruction:
+# {user_input}
+
+# COMMON MODIFICATION TYPES:
+
+# TYPE 1 - Toxicology Data Addition:
+# - Add complete entry to toxicology array
+# - Required fields: reference, data, source, statement, replaced
+# - Action: Return ONLY the new entry to append
+
+# TYPE 2 - DAP Update:
+# - Update "DAP" array with new value
+# - Update "percutaneous_absorption" with supporting data
+# - Return: {{"DAP": [...], "percutaneous_absorption": [...]}}
+
+# TYPE 3 - NOAEL Update:
+# - Update "NOAEL" array with new value
+# - Update "repeated_dose_toxicity" with supporting data
+# - Return: {{"NOAEL": [...], "repeated_dose_toxicity": [...]}}
+
+# CRITICAL RULES:
+# 1. Return ONLY the fields that need updating
+# 2. Do NOT use [...] or "..." placeholders
+# 3. Do NOT return entire JSON - only changed fields
+# 4. Field names must be lowercase ("inci", not "INCI")
+# 5. Return valid JSON only, no explanations
+
+# Now analyze and return ONLY the fields to update with COMPLETE data:
+# """
+
+# # my initial code (agent_graph_toxicity) + prompt fine-tuning
+# def _build_llm_prompt(json_data: dict, user_input: str, current_inci: str) -> str:
+#     """
+#     Build the prompt for LLM processing
+    
+#     Args:
+#         json_data: Current JSON structure
+#         user_input: User's instruction
+#         current_inci: Current ingredient name
+        
+#     Returns:
+#         Formatted prompt string
+#     """
+#     json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+    
+#     return f"""You are a toxicology data specialist for cosmetic ingredients. Update JSON for INCI: {current_inci}
+
+# Current JSON Structure:
+# {json_str}
+
+# User Instruction:
+# {user_input}
+
+# COMMON MODIFICATION TYPES:
+
+# TYPE 1 - Toxicology Data Addition (毒理資料插補):
+# - Add complete entry to toxicology array (acute_toxicity, skin_irritation, etc.)
+# - Required fields: reference, data, source, statement, replaced
+# - Action: Return ONLY the new entry to append
+
+# TYPE 2 - DAP Update:
+# - Update "DAP" array with new value
+# - Update "percutaneous_absorption" array with supporting data
+# - Return: {{"DAP": [...], "percutaneous_absorption": [...]}}
+
+# TYPE 3 - NOAEL Update:
+# - Update "NOAEL" array with new value
+# - Update "repeated_dose_toxicity" array with supporting data
+# - Return: {{"NOAEL": [...], "repeated_dose_toxicity": [...]}}
+
+# EXPECTED OUTPUT SCHEMA (follow this structure):
+
+# For NOAEL updates:
+# {{
+#   "inci": "<current_ingredient_name>",
+#   "NOAEL": [
+#     {{
+#       "value": <number_from_instruction>,
+#       "unit": "<unit_from_instruction>",
+#       "source": "<source_from_instruction_lowercase>",
+#       "type": "NOAEL",
+#       "experiment_target": "<target_or_null>",
+#       "study_duration": "<duration_or_null>",
+#       "note": "<note_or_null>"
+#     }}
+#   ],
+#   "repeated_dose_toxicity": [
+#     {{
+#       "reference": {{"title": "<title>", "link": "<url_or_null>"}},
+#       "data": ["<key_finding>"],
+#       "source": "<source_lowercase>",
+#       "statement": "<summary>",
+#       "replaced": {{"replaced_inci": "", "replaced_type": ""}}
+#     }}
+#   ]
+# }}
+
+# Extract ALL values from the user instruction above. DO NOT make up values.
+# """
+
+def _build_llm_prompt(json_data: dict, user_input: str, current_inci: str) -> str:
+    """
+    Build the prompt for LLM processing
+    
+    Args:
+        json_data: Current JSON structure
+        user_input: User's instruction
+        current_inci: Current ingredient name
+        
+    Returns:
+        Formatted prompt string
+    """
+    json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+    
+    return f"""You are a toxicology data specialist for cosmetic ingredients. Update JSON for INCI: {current_inci}
+
+Current JSON Structure:
+{json_str}
+
+User Instruction:
+{user_input}
+
+COMMON MODIFICATION TYPES:
+
+TYPE 1 - Toxicology Data Addition (毒理資料差補):
+- Add complete entry to toxicology array (acute_toxicity, skin_irritation, etc.)
+- Required fields: reference, data, source, statement, replaced
+- Action: Return ONLY the new entry to append
+
+TYPE 2 - DAP Update:
+- Update "DAP" array with new value
+- Update "percutaneous_absorption" array with supporting data
+- Return: {{"DAP": [...], "percutaneous_absorption": [...]}}
+
+TYPE 3 - NOAEL Update:
+- Update "NOAEL" array with new value
+- Update "repeated_dose_toxicity" array with supporting data
+- Return: {{"NOAEL": [...], "repeated_dose_toxicity": [...]}}
+
+CRITICAL RULES:
+1. Return ONLY the fields that need to be updated
+2. Do NOT use [...] or "..." placeholders - provide actual complete data
+3. Do NOT return the entire JSON - only changed fields
+4. Field names must be lowercase ("inci", not "INCI")
+5. Return valid JSON only, no explanations
+
+EXAMPLES:
+
+Example 1 (TYPE 3 - NOAEL Update):
+Input: "Set NOAEL to 800 mg/kg bw/day from ECHA, add repeated dose toxicity study"
+Output:
+{{
+  "inci": "PETROLATUM",
+  "NOAEL": [
+    {{
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": "Rats",
+      "source": "echa",
+      "type": "NOAEL",
+      "study_duration": "90-day",
+      "value": 800
+    }}
+  ],
+  "repeated_dose_toxicity": [
+    {{
+      "reference": {{
+        "title": "ECHA Registration Dossier",
+        "link": "https://echa.europa.eu"
+      }},
+      "data": ["90-day oral toxicity study in rats showed NOAEL of 800 mg/kg bw/day"],
+      "source": "echa",
+      "statement": "Based on repeated dose toxicity studies",
+      "replaced": {{
+        "replaced_inci": "",
+        "replaced_type": ""
+      }}
+    }}
+  ]
+}}
+
+Example 2 (TYPE 2 - DAP Update):
+Input: "Set DAP to 10% based on expert judgment"
+Output:
+{{
+  "inci": "INGREDIENT_NAME",
+  "DAP": [
+    {{
+      "note": "Expert assessment",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 10
+    }}
+  ],
+  "percutaneous_absorption": [
+    {{
+      "reference": {{
+        "title": "Expert Assessment",
+        "link": null
+      }},
+      "data": ["Dermal absorption estimated at 10% based on molecular properties"],
+      "source": "expert",
+      "statement": "Conservative estimate for safety assessment",
+      "replaced": {{
+        "replaced_inci": "",
+        "replaced_type": ""
+      }}
+    }}
+  ]
+}}
+
+Now analyze the instruction and return ONLY the fields to update with COMPLETE data (no [...] placeholders):
+"""

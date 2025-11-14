@@ -1,0 +1,341 @@
+{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS UNEP PUBLICATIONS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS MENTHOLS assessment",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [
+    {
+      "reference": {
+        "title": "Expert Assessment of Dermal Absorption",
+        "link": null
+      },
+      "data": [
+        "Dermal absorption estimated at 5% considering lipophilic nature and molecular weight"
+      ],
+      "source": "expert",
+      "statement": "Based on physicochemical properties",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [
+    {
+      "note": "Based on lipophilic nature and molecular weight considerations",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 5
+    }
+  ],
+  "inci_ori": "L-MENTHOL"
+}{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS UNEP PUBLICATIONS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS assessment",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [
+    {
+      "reference": {
+        "title": "Expert Assessment of Dermal Absorption",
+        "link": null
+      },
+      "data": [
+        "Dermal absorption estimated at 5% considering lipophilic nature and molecular weight"
+      ],
+      "source": "expert",
+      "statement": "Based on physicochemical properties",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [
+    {
+      "note": "Based on lipophilic nature and molecular weight considerations",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 5
+    }
+  ],
+  "inci_ori": "L-MENTHOL"
+}{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS MENTHOLS assessment",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [
+    {
+      "reference": {
+        "title": "Expert Assessment of Dermal Absorption",
+        "link": null
+      },
+      "data": [
+        "Dermal absorption estimated at 5% considering lipophilic nature and molecular weight"
+      ],
+      "source": "expert",
+      "statement": "Based on physicochemical properties",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [
+    {
+      "note": "Based on lipophilic nature and molecular weight considerations",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 5
+    }
+  ],
+  "inci_ori": "L-MENTHOL"
+}{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS UNEP PUBLICATIONS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS assessment",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [
+    {
+      "reference": {
+        "title": "Expert Assessment of Dermal Absorption",
+        "link": null
+      },
+      "data": [
+        "Dermal absorption estimated at 5% considering lipophilic nature and molecular weight"
+      ],
+      "source": "expert",
+      "statement": "Based on physicochemical properties",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [
+    {
+      "note": "Based on lipophilic nature and molecular weight considerations",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 5
+    }
+  ],
+  "inci_ori": "L-MENTHOL"
+}{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS UNEP PUBLICATIONS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS assessment",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [
+    {
+      "reference": {
+        "title": "Expert Assessment of Dermal Absorption",
+        "link": null
+      },
+      "data": [
+        "Dermal absorption estimated at 5% considering lipophilic nature and molecular weight"
+      ],
+      "source": "expert",
+      "statement": "Based on physicochemical properties",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [
+    {
+      "note": "Based on lipophilic nature and molecular weight considerations",
+      "unit": "%",
+      "experiment_target": null,
+      "source": "expert",
+      "type": "DAP",
+      "study_duration": null,
+      "value": 5
+    }
+  ],
+  "inci_ori": "L-MENTHOL"
+}

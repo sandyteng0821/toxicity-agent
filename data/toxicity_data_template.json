@@ -1,0 +1,43 @@
+{
+  "inci": "L-MENTHOL",
+  "cas": [],
+  "isSkip": false,
+  "category": "OTHERS",
+  "acute_toxicity": [],
+  "skin_irritation": [],
+  "skin_sensitization": [],
+  "ocular_irritation": [],
+  "phototoxicity": [],
+  "repeated_dose_toxicity": [
+    {
+      "reference": {
+        "title": "OECD SIDS MENTHOLS",
+        "link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90"
+      },
+      "data": [
+        "NOAEL of 200 mg/kg bw/day established based on OECD assessment"
+      ],
+      "source": "oecd",
+      "statement": "Based on OECD SIDS MENTHOLS publication",
+      "replaced": {
+        "replaced_inci": "",
+        "replaced_type": ""
+      }
+    }
+  ],
+  "percutaneous_absorption": [],
+  "ingredient_profile": [],
+  "NOAEL": [
+    {
+      "note": null,
+      "unit": "mg/kg bw/day",
+      "experiment_target": null,
+      "source": "oecd",
+      "type": "NOAEL",
+      "study_duration": null,
+      "value": 200
+    }
+  ],
+  "DAP": [],
+  "inci_ori": "L-MENTHOL"
+}
