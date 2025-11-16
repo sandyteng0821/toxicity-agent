@@ -1,10 +1,17 @@
 """
 LangGraph workflow construction
 """
+import aiosqlite
+import sqlite3
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.graph.state import JSONEditState
 from app.graph.nodes.llm_edit_node import llm_edit_node
+from core.database import ToxicityDB
+
+# Initialize DB (module level)
+db = ToxicityDB()
 
 def build_graph():
     """
@@ -29,8 +36,12 @@ def build_graph():
             "end": END
         }
     )
-    
-    return graph.compile()
+
+    # Create connection and pass to SqliteSaver
+    conn = sqlite3.connect("chat_memory.db", check_same_thread=False)
+    checkpointer = SqliteSaver(conn=conn)
+
+    return graph.compile(checkpointer=checkpointer)
 
 def _should_continue(state: JSONEditState) -> str:
     """

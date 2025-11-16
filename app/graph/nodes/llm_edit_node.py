@@ -4,6 +4,7 @@ LLM node for processing toxicology edit instructions
 import json
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, AIMessage
 
 from app.config import DEFAULT_LLM_MODEL
 from app.graph.state import JSONEditState
@@ -12,7 +13,14 @@ from app.services.text_processing import (
     extract_toxicology_sections,
     clean_llm_json_output
 )
-from app.services.data_updater import merge_json_updates
+from app.services.data_updater import (
+    merge_json_updates, 
+    update_toxicology_data
+)
+from core.database import ToxicityDB
+
+# Initialize DB at module level
+db = ToxicityDB()
 
 def llm_edit_node(state: JSONEditState) -> JSONEditState:
     """
@@ -24,9 +32,19 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
     Returns:
         Updated state with modified JSON data
     """
-    # llm = ChatOllama(model=DEFAULT_LLM_MODEL)
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # It works. # need to have API key in .env
+    llm = ChatOllama(model=DEFAULT_LLM_MODEL)
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # It works. # need to have API key in .env
     
+    # Get conversation context from DB
+    conversation_id = state.get("conversation_id")
+    # Load current JSON from DB (not from state)
+    current_version_obj = db.get_current_version(conversation_id)
+    if current_version_obj:
+        current_json = json.loads(current_version_obj.data)
+    else:
+        # Fallback to state if no DB version exists
+        current_json = state["json_data"]
+
     # Extract INCI name
     current_inci = extract_inci_name(state["user_input"])
     if not current_inci:
@@ -38,8 +56,12 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
     
     if toxicology_sections:
         # Direct update without LLM
-        updated_json = state["json_data"].copy()
-        from app.services.data_updater import update_toxicology_data
+        # updated_json = state["json_data"].copy()
+        updated_json = update_toxicology_data(
+                    updated_json[section], 
+                    data
+                )
+        response_msg = f"✅ Updated toxicology data for {current_inci}"
         
         for section, data in toxicology_sections.items():
             if section in updated_json:
@@ -48,13 +70,24 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
                     data
                 )
         
+        # Save to DB
+        db.save_version(
+            conversation_id=conversation_id,
+            data=updated_json,
+            modification_summary=f"Updated {', '.join(toxicology_sections.keys())}"
+        )
+        # Add to chat history
+        ai_message = AIMessage(content=response_msg)
+
         state["json_data"] = updated_json
-        state["response"] = f"✅ Updated toxicology data for {current_inci}"
+        state["response"] = response_msg
+        state["messages"] = [ai_message]
         return state
     
     # Use LLM for natural language processing
-    prompt = _build_llm_prompt(state["json_data"], state["user_input"], current_inci)
-    
+    # prompt = _build_llm_prompt(state["json_data"], state["user_input"], current_inci)
+    prompt = _build_llm_prompt(current_json, state["user_input"], current_inci)
+
     try:
         result = llm.invoke(prompt)
         state["response"] = result.content
@@ -64,15 +97,30 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
         print(f"DEBUG: Cleaned JSON (first 500 chars):\n{clean_content[:500]}")
         
         updates = json.loads(clean_content)
-        merged_json = merge_json_updates(state["json_data"], updates)
-        
+        # merged_json = merge_json_updates(state["json_data"], updates)
+        merged_json = merge_json_updates(current_json, updates)
+
+        response_msg = f"✅ Successfully updated {list(updates.keys())} for {current_inci}"
+
+        # NEW: Save to DB
+        db.save_version(
+            conversation_id=conversation_id,
+            data=merged_json,
+            modification_summary=f"Updated {', '.join(updates.keys())}"
+        )
+
+        ai_message = AIMessage(content=response_msg)
+
         state["json_data"] = merged_json
-        state["response"] = f"✅ Successfully updated {list(updates.keys())} for {current_inci}"
+        state["response"] = response_msg
+        state["messages"] = [ai_message]
         
     except json.JSONDecodeError as e:
         error_msg = f"⚠️ LLM output was not valid JSON: {str(e)}"
+        ai_message = AIMessage(content=error_msg)
         state["response"] = error_msg
         state["error"] = error_msg
+        state["json_data"] = current_json
         print(error_msg)
     
     return state
