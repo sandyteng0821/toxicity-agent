@@ -1,28 +1,38 @@
 """
 API routes for toxicology editing
 """
+import uuid
+import json
 from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from langchain_core.messages import HumanMessage
 
 from app.graph.build_graph import build_graph
 from app.services.json_io import read_json, write_json
 from app.config import JSON_TEMPLATE, JSON_TEMPLATE_PATH
 from app.api.helper import _is_duplicate_entry
+from core.database import ToxicityDB
 
 router = APIRouter(prefix="/api", tags=["edit"])
+
+db = ToxicityDB()
 graph = build_graph()
 
 class EditRequest(BaseModel):
     """Request model for edit endpoint"""
     instruction: str
     inci_name: Optional[str] = None
+    conversation_id: Optional[str] = None
+    initial_data: Optional[dict] = None  # Only for first request
 
 class EditResponse(BaseModel):
     """Response model for edit endpoint"""
     inci: str
     updated_json: dict
     raw_response: str
+    conversation_id: str
+    current_version: int
 
 # ============================================================================
 # Form-based Request Models
@@ -101,30 +111,72 @@ async def edit_json(req: EditRequest):
         Updated JSON and processing details
     """
     try:
-        current_json = read_json()
+        # ============================================
+        # NEW: Conversation & Memory Setup
+        # ============================================
+        conv_id = req.conversation_id or str(uuid.uuid4())
+        # NEW: Save initial data if provided
+        if req.initial_data:
+            db.save_version(
+                conversation_id=conv_id,
+                data=req.initial_data,
+                modification_summary="Initial data"
+            )
         
-        # Prepare user input
+        # NEW: Configure thread for memory 
+        config = {"configurable": {"thread_id": conv_id}}
+        # ============================================
+        # MODIFY: Load current data from DB (not file)
+        # ============================================
+        current_version_obj = db.get_current_version(conv_id)
+        # If no data in DB, fall back to file (for backward compatibility)
+        if current_version_obj:
+            current_json = json.loads(current_version_obj.data)
+        else:
+            # Fallback: Load from file and save as version 1
+            current_json = read_json()
+            db.save_version(
+                conversation_id=conv_id,
+                data=current_json,
+                modification_summary="Load from file"
+            )
+
+        # ============================================
+        # KEEP: Prepare user input (your existing logic)
+        # ============================================
         user_input = req.instruction
         if req.inci_name:
             user_input = f"INCI: {req.inci_name}\n{user_input}"
-        
+
         # Run graph
         result = graph.invoke({
+            "messages": [HumanMessage(content=user_input)],  # NEW: Add message
+            "conversation_id": conv_id,  # NEW
             "json_data": current_json,
             "user_input": user_input,
             "response": "",
             "current_inci": req.inci_name or current_json.get('inci', 'INCI_NAME'),
             "edit_history": None,
             "error": None
-        })
+        }, config=config)
         
-        # Save result
+        db.save_version(
+            conversation_id=conv_id,
+            data=result["json_data"],
+            modification_summary=result.get("response", "Modified data")[:200]  # Truncate if long
+        )
+
+        # Save result (to file) => for backward compatibility
         write_json(result["json_data"], str(JSON_TEMPLATE_PATH))
+        # Get latest version from DB
+        latest = db.get_current_version(conv_id)
         
         return EditResponse(
             inci=result["current_inci"],
             updated_json=result["json_data"],
-            raw_response=result["response"]
+            raw_response=result["response"],
+            conversation_id=conv_id,
+            current_version=latest.version,
         )
         
     except Exception as e:
