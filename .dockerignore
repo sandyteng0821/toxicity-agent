@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Test results (not needed in container)
+data/test_results/
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Backup files
+*.backup
+*.bak
+
+# Environment files
+.env
+.env.*
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore

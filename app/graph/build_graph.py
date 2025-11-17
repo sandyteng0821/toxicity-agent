@@ -3,6 +3,7 @@ LangGraph workflow construction
 """
 import aiosqlite
 import sqlite3
+from contextlib import contextmanager
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -10,15 +11,26 @@ from app.graph.state import JSONEditState
 from app.graph.nodes.llm_edit_node import llm_edit_node
 from core.database import ToxicityDB
 
-# Initialize DB (module level)
-db = ToxicityDB()
+# Global connection (reused across requests)
+_db_connection = None
+
+def get_db_connection():
+    """Get or create global DB connection"""
+    global _db_connection
+    if _db_connection is None:
+        _db_connection = sqlite3.connect(
+            "chat_memory.db", 
+            check_same_thread=False,
+            timeout=30
+        )
+    return _db_connection
 
 def build_graph():
     """
-    Build and compile the toxicology editing workflow
+    Build and compile the toxicology editing workflow with chat history
     
     Returns:
-        Compiled LangGraph application
+        Compiled LangGraph application with SqliteSaver checkpointer
     """
     graph = StateGraph(JSONEditState)
     
@@ -38,7 +50,7 @@ def build_graph():
     )
 
     # Create connection and pass to SqliteSaver
-    conn = sqlite3.connect("chat_memory.db", check_same_thread=False)
+    conn = get_db_connection() # Use global connection for checkpointer
     checkpointer = SqliteSaver(conn=conn)
 
     return graph.compile(checkpointer=checkpointer)

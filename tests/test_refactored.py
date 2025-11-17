@@ -12,6 +12,10 @@ from app.services.json_io import read_json, write_json
 from app.services.text_processing import extract_inci_name, clean_llm_json_output
 from app.services.data_updater import fix_common_llm_errors, merge_json_updates
 from app.graph.build_graph import build_graph
+from core.database import ToxicityDB
+
+# Initialize DB (module level)
+db = ToxicityDB()
 
 def test_json_io():
     """Test JSON read/write"""
@@ -45,7 +49,8 @@ def test_graph_builds():
     assert graph is not None
 
 def test_graph_invoke():
-    """Test graph execution"""
+    """Test graph execution with chat history"""
+    import uuid
     from app.graph.state import JSONEditState
     
     graph = build_graph()
@@ -57,10 +62,15 @@ def test_graph_invoke():
         edit_history=None,
         error=None
     )
-    
-    result = graph.invoke(state)
+
+    conv_id = str(uuid.uuid4()) # create unique conversation id
+    config = {"configurable": {"thread_id": conv_id}} # configure thread for memory 
+    result = graph.invoke(state, config=config)
     assert "json_data" in result
     assert "response" in result
+
+    result2 = graph.invoke(state, config=config)
+    assert result2 is not None # should load from checkpoint
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

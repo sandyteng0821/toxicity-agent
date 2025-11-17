@@ -32,8 +32,8 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
     Returns:
         Updated state with modified JSON data
     """
-    llm = ChatOllama(model=DEFAULT_LLM_MODEL)
-    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # It works. # need to have API key in .env
+    # llm = ChatOllama(model=DEFAULT_LLM_MODEL)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # It works. # need to have API key in .env
     
     # Get conversation context from DB
     conversation_id = state.get("conversation_id")

@@ -46,7 +46,6 @@ toxicity-agent/
 ## 🚀 Quick Start
 
 ### Installation
-
 ```bash
 # Create virtual environment
 /opt/homebrew/bin/python3.13 -m venv venv
@@ -54,20 +53,39 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+# Or use: make install
 
 # Configure model (choose one):
-# Option A: GPT-4o-mini
+# Option A: GPT-4o-mini (recommended for testing)
 echo "OPENAI_API_KEY=your_key" > .env
 
 # Option B: Llama3.1:8b (free, local)
 ollama serve && ollama pull llama3.1:8b
 ```
 
-### Start Server
+### Run Tests
+```bash
+python -m pytest tests/ -v
+# Or use: make test
+```
 
+### Start Server
 ```bash
 python3 run.py
+# Or use: make run
+
 # API Docs: http://localhost:8000/docs
+```
+
+### Using Make Commands (Optional)
+
+If you have `make` installed, you can use these shortcuts:
+```bash
+make install     # Install dependencies
+make test        # Run all tests
+make run         # Start server
+make clean       # Clean temporary files
+make help        # Show all commands
 ```
 
 ### Model Configuration

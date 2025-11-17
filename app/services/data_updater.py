@@ -17,6 +17,9 @@ def update_toxicology_data(
     Returns:
         Updated data array
     """
+    # Handle None case (The LLM returned null for arrays, causing update_toxicology_data() to fail)
+    if current_data is None:
+        current_data = []
     updated_data = current_data.copy()
 
     for new_entry in new_data:
@@ -95,6 +98,10 @@ def merge_json_updates(
             print(f"✅ Updated inci: {value}")
             
         elif key in merged:
+            # Handle None values
+            if value is None:
+                print(f"⚠️ Skipping null value for {key}")
+                continue
             if isinstance(value, list) and value:
                 # Toxicology fields: append
                 if key in TOXICOLOGY_FIELDS:

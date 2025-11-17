@@ -26,3 +26,18 @@ logs/
 
 # Tests
 .pytest_cache/
+
+# Chat history database
+chat_memory.db
+chat_memory.db-shm
+chat_memory.db-wal
+
+# Toxicity database
+toxicity_data.db
+
+# Test results
+data/test_results/
+test.json
+
+# Data template (if frequently regenerated)
+data/toxicity_data_template.json

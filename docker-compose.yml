@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Toxicity Agent API (OpenAI only)
+  toxicity-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: toxicity-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      # Persist data files
+      - ./data:/app/data
+      # Persist logs
+      - ./logs:/app/logs
+      # Persist chat history
+      - ./chat_memory.db:/app/chat_memory.db
+    networks:
+      - toxicity-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  toxicity-network:
+    driver: bridge

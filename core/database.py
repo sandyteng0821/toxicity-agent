@@ -1,6 +1,7 @@
 # database.py
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
-from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy.ext.declarative import declarative_base # deprecated
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import json
 from datetime import datetime
