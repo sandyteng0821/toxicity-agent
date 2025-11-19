@@ -8,7 +8,8 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.graph.state import JSONEditState
-from app.graph.nodes.llm_edit_node import llm_edit_node
+# from app.graph.nodes.llm_edit_node import llm_edit_node
+from app.graph.nodes.llm_edit_node_with_patch import llm_edit_node_with_patch
 from core.database import ToxicityDB
 
 # Global connection (reused across requests)
@@ -25,7 +26,7 @@ def get_db_connection():
         )
     return _db_connection
 
-def build_graph():
+def build_graph(use_test_db=False):
     """
     Build and compile the toxicology editing workflow with chat history
     
@@ -35,7 +36,8 @@ def build_graph():
     graph = StateGraph(JSONEditState)
     
     # Add nodes
-    graph.add_node("edit", llm_edit_node)
+    # graph.add_node("edit", llm_edit_node)
+    graph.add_node("edit", llm_edit_node_with_patch)
     
     # Set entry point
     graph.set_entry_point("edit")
@@ -49,9 +51,15 @@ def build_graph():
         }
     )
 
-    # Create connection and pass to SqliteSaver
-    conn = get_db_connection() # Use global connection for checkpointer
-    checkpointer = SqliteSaver(conn=conn)
+    # Use different database for tests
+    if use_test_db:
+        # Option 1: In-memory (doesn't persist, can't get corrupted)
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
+        checkpointer = SqliteSaver(conn=conn)
+    else:
+        # Option 2: Production database # Create connection and pass to SqliteSaver
+        conn = get_db_connection() # Use global connection for checkpointer
+        checkpointer = SqliteSaver(conn=conn)
 
     return graph.compile(checkpointer=checkpointer)
 
