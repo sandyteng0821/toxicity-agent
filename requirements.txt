@@ -14,5 +14,7 @@ sqlalchemy # for db construction
 dictdiffer # for db comparison
 aiosqlite
 langgraph-checkpoint-sqlite
+# trustcall # existing packages for json patch integration (to test)
+jsonpatch
 # langgraph-checkpoint>=2.0.0 # (update langgraph for sqlite support)
 # langgraph-checkpoint[sqlite] # pip install --force-reinstall "langgraph-checkpoint[sqlite]"
