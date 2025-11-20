@@ -79,3 +79,47 @@
 ### Known Issues
 - Docker deployment not yet fully implemented
 - Ollama integration in Docker pending testing
+
+---
+
+## [v2.0.0] - 2024-11-20
+feat(v2.0.0): major LangGraph refactor into modular node-based pipeline
+
+### Summary
+This release replaces the previous monolithic JSON-edit node with a fully
+modular LangGraph architecture. The agent is now decomposed into explicit,
+testable, and maintainable nodes, enabling clearer control flow, improved
+debuggability, and easier future extension (tooling, memory, multi-step agents).
+
+### Major Changes
+- Introduced multi-node LangGraph pipeline:
+  - `load_json.py` – load current toxicity JSON state
+  - `parse_instruction.py` – extract INCI + classify edit intent
+  - `fast_update.py` – structured extraction–based updates (no LLM)
+  - `patch_generate.py` – generate JSON Patch ops via LLM
+  - `patch_apply.py` – validate + apply patch operations safely
+  - `fallback_full.py` – reliable fallback full-JSON rewrite
+  - `save_json.py` – persist updated JSON + version tracking
+  - `edit_orchestrator.py` – orchestrates conditional routing
+
+- Added shared utilities:
+  - `patch_utils.py` – safe patch validation + application helpers
+  - `schema_tools.py` – JSONPatchOperation schema & typed helpers
+
+- Updated graph structure:
+  - Replaced single edit node with multi-node DAG
+  - Cleaner state transitions (`last_patches`, `patch_success`,
+    `fast_done`, `fallback_used`, etc.)
+
+### Benefits
+- Better maintainability & readability
+- Isolated failure points (LLM errors, patch errors, schema mismatches)
+- Deterministic flow control between fast-path / patch-path / fallback
+- Easier to visualize and extend (future tools, memory, multi-instruction workflows)
+- No business logic buried inside a single mega-node
+
+### Notes
+This is a breaking architectural change; previous workflows relying on the old
+monolithic edit node should migrate to the new `edit_orchestrator` entrypoint.
+
+---
