@@ -45,7 +45,7 @@ def test_fix_llm_errors():
 
 def test_graph_builds():
     """Test graph compilation"""
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     assert graph is not None
 
 def test_graph_invoke():
@@ -53,7 +53,7 @@ def test_graph_invoke():
     import uuid
     from app.graph.state import JSONEditState
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     state = JSONEditState(
         json_data={"inci": "TEST", "NOAEL": []},
         user_input="Update INCI name to PETROLATUM",

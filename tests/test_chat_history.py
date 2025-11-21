@@ -17,7 +17,7 @@ def test_single_edit():
     """Test single edit with chat history"""
     print("\n=== Test 1: Single Edit ===")
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     
     # Create unique conversation ID
     conv_id = str(uuid.uuid4())
@@ -53,7 +53,7 @@ def test_multiple_edits():
     """Test multiple sequential edits with history"""
     print("\n=== Test 2: Multiple Edits ===")
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     conv_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": conv_id}}
     
@@ -94,7 +94,7 @@ def test_checkpoint_persistence():
     """Test that checkpoints are saved and loaded correctly"""
     print("\n=== Test 3: Checkpoint Persistence ===")
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     conv_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": conv_id}}
     
@@ -137,7 +137,7 @@ def test_different_threads():
     """Test that different threads maintain separate state"""
     print("\n=== Test 4: Different Threads ===")
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     
     # Thread 1
     conv_id1 = str(uuid.uuid4())
@@ -179,7 +179,7 @@ def test_error_handling():
     """Test error handling with chat history"""
     print("\n=== Test 5: Error Handling ===")
     
-    graph = build_graph()
+    graph = build_graph(use_test_db=True)
     conv_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": conv_id}}
     
