@@ -1,6 +1,7 @@
 # nodes/patch_generate.py
 from langchain_openai import ChatOpenAI
 
+from ..utils.llm_factory import get_structured_llm
 from ..utils.schema_tools import JSONPatchOperation
 from ..utils.patch_utils import (
     _generate_patch_with_llm
@@ -16,8 +17,9 @@ def patch_generate_node(state):
     current_inci = state.get("current_inci")
 
     # Setup LLM
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    structured_llm = llm.with_structured_output(JSONPatchOperation, method="function_calling")
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    # structured_llm = llm.with_structured_output(JSONPatchOperation, method="function_calling")
+    structured_llm = get_structured_llm(JSONPatchOperation)
 
     # Generate JSON Patch operation using LLM
     patch_op = _generate_patch_with_llm(

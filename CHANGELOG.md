@@ -123,3 +123,17 @@ This is a breaking architectural change; previous workflows relying on the old
 monolithic edit node should migrate to the new `edit_orchestrator` entrypoint.
 
 ---
+
+## [v2.1.0] - 2024-11-21
+feat(v2.1.0): integrate local/remote LLM factory + fix multi-node workflow state
+
+### Summary
+- Added llm_factory.py to support dynamic provider selection (local Ollama / OpenAI)
+- Updated config.py and .env-example with PROVIDER + MODEL variables
+- Patched fallback_full.py and patch_generate.py to use LLM factory
+- Updated toxicity_data_template.json test baseline
+- Refreshed requirements.txt to include langchain-ollama and missing deps
+- Ensured multi-node workflow passes test suite (OpenAI + Ollama)
+- 
+
+---

@@ -22,7 +22,35 @@ EDITOR_JSON_PATH = DATA_DIR / "editor.json"
 
 # LLM configuration
 DEFAULT_LLM_MODEL = "llama3.1:8b"
+# -----------------------------------------------------------------------------
+# Provider selection
+# -----------------------------------------------------------------------------
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")  
+# Options: "local" | "openai" | "anthropic" | "gemini"
+
+# -----------------------------------------------------------------------------
+# Local model (Ollama)
+# -----------------------------------------------------------------------------
+LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "llama3.1:8b")
+LOCAL_EMBED_MODEL = os.getenv("LOCAL_EMBED_MODEL", "nomic-embed-text")
+
+# -----------------------------------------------------------------------------
+# OpenAI
+# -----------------------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+# -----------------------------------------------------------------------------
+# Anthropic
+# -----------------------------------------------------------------------------
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+
+# -----------------------------------------------------------------------------
+# Google Gemini
+# -----------------------------------------------------------------------------
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 # API configuration
 API_HOST = "0.0.0.0"

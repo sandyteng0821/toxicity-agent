@@ -8,6 +8,8 @@ python-dotenv==1.2.1
 langgraph # (update langgraph for sqlite support)
 langchain-ollama==1.0.0
 langchain-openai==1.0.2
+langchain_anthropic
+langchain_google_genai 
 pytest==7.4.3
 ipython==9.7.0 # for agent graph viewing
 sqlalchemy # for db construction 
