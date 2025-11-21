@@ -81,7 +81,12 @@ def test_multiple_edits():
     )
     result2 = graph.invoke(state2, config=config)
     assert len(result2["json_data"]["NOAEL"]) > 0
-    print(f"✅ Edit 2: NOAEL = {result2['json_data']['NOAEL'][0]['value']}")
+    # NEW:
+    noael_value = result2["json_data"]["NOAEL"][0]
+    if isinstance(noael_value, dict):
+        print(f"✅ Edit 2: NOAEL = {noael_value.get('value', noael_value)}")
+    else:
+        print(f"✅ Edit 2: NOAEL = {noael_value}")
     
     return conv_id
 
