@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import json
+import sqlite3
 from datetime import datetime, timezone
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import dictdiffer
 
 Base = declarative_base()
@@ -154,3 +155,78 @@ class ToxicityDB:
             return history
         finally:
             session.close()
+
+class ToxicityRepository:
+    """Handles all raw database interactions for toxicity data."""
+    def __init__(self, db_path: str = "toxicity_data.db"):
+        self.db_path = db_path
+
+    def _execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+        """
+        Internal helper to execute a query and return results as dictionaries.
+        """
+        conn: Optional[sqlite3.Connection] = None
+        results: List[Dict[str, Any]] = []
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row # Dictionary-like results
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            
+            # Process rows
+            for row in cursor.fetchall():
+                row_dict = dict(row)
+                
+                # Automatically parse JSON strings if they exist
+                if 'data' in row_dict and isinstance(row_dict['data'], str):
+                    try:
+                        row_dict['data'] = json.loads(row_dict['data'])
+                    except json.JSONDecodeError:
+                        row_dict['data'] = {"error": "JSON Decode Error in data field"}
+                
+                if 'patch_operations' in row_dict and isinstance(row_dict['patch_operations'], str):
+                    try:
+                        row_dict['patch_operations'] = json.loads(row_dict['patch_operations'])
+                    except json.JSONDecodeError:
+                        row_dict['patch_operations'] = {"error": "JSON Decode Error in patch_operations field"}
+                
+                results.append(row_dict)
+
+        except sqlite3.Error as e:
+            # Log the error instead of printing
+            print(f"Database error: {e}") 
+            # In a real API, you might raise a custom exception here.
+            
+        finally:
+            if conn:
+                conn.close()
+
+        return results
+        
+    def get_conversation_versions(self, conversation_id: str, version: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        The central flexible function for fetching data based on conversation ID and optional version.
+        
+        This method serves both /api/history and /api/versions.
+        """
+        base_query = """
+            SELECT id, conversation_id, version, data, modification_summary, 
+                   created_at, patch_operations
+            FROM toxicity_versions 
+            WHERE conversation_id = ?
+        """
+        params: List[Any] = [conversation_id]
+        
+        if version:
+            base_query += " AND version = ?"
+            params.append(version)
+        
+        base_query += " ORDER BY version"
+        
+        return self._execute_query(base_query, tuple(params))
+
+    def get_version(self, conversation_id: str, version: str) -> Optional[Dict[str, Any]]:
+        """Helper to get a single version result."""
+        results = self.get_conversation_versions(conversation_id, version)
+        return results[0] if results else None

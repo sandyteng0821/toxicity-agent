@@ -3,19 +3,21 @@ API routes for toxicology editing
 """
 import uuid
 import json
-from typing import Optional, Literal
-from fastapi import APIRouter, HTTPException
+from typing import Optional, Literal, List, Dict, Any
+from fastapi import APIRouter, HTTPException, FastAPI
 from pydantic import BaseModel, Field
+from jsonpatch import JsonPatch
 from langchain_core.messages import HumanMessage
 
 from app.graph.build_graph import build_graph
 from app.services.json_io import read_json, write_json
 from app.config import JSON_TEMPLATE, JSON_TEMPLATE_PATH
 from app.api.helper import _is_duplicate_entry
-from core.database import ToxicityDB
+from core.database import ToxicityDB, ToxicityRepository
 
 router = APIRouter(prefix="/api", tags=["edit"])
 
+repo = ToxicityRepository(db_path="toxicity_data.db")
 db = ToxicityDB()
 graph = build_graph()
 
@@ -336,6 +338,82 @@ async def edit_dap_form(req: DAPFormRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update DAP: {str(e)}")
+
+@router.get("/history/{conversation_id}", response_model=List[Dict[str, Any]])
+async def get_history(conversation_id: str):
+    """Retrieves ALL versions for a given conversation ID."""
+    history = repo.get_conversation_versions(conversation_id)
+    
+    if not history:
+        raise HTTPException(status_code=404, detail=f"No history found for conversation: {conversation_id}")
+        
+    return history
+
+@router.get("/versions/{conversation_id}/{version}", response_model=Dict[str, Any])
+async def get_specific_version(conversation_id: str, version: str):
+    """Retrieves a single, specific version of the data."""
+    data = repo.get_version(conversation_id, version)
+    
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Version '{version}' not found for conversation: {conversation_id}")
+        
+    return data
+
+@router.get("/timeline/{conversation_id}", response_model=List[Dict[str, Any]])
+async def get_timeline(conversation_id: str):
+    """
+    Retrieves summary information for all versions to build a timeline/list.
+    This usually excludes the large 'data' and 'patch_operations' fields for speed.
+    """
+    # **Action Recommended:** Add a new query method in ToxicityRepository 
+    # that SELECTs only summary columns (id, version, created_at, summary).
+    # For now, we will use the full data and strip unnecessary fields.
+    full_history = repo.get_conversation_versions(conversation_id)
+    
+    if not full_history:
+        raise HTTPException(status_code=404, detail=f"No history found for conversation: {conversation_id}")
+        
+    timeline_summary = []
+    for entry in full_history:
+        # Create a light-weight summary object
+        timeline_summary.append({
+            "id": entry["id"],
+            "version": entry["version"],
+            "created_at": entry["created_at"],
+            "modification_summary": entry["modification_summary"],
+            "has_data": "data" in entry and bool(entry["data"]) # check for content existence
+        })
+        
+    return timeline_summary
+
+@router.get("/diff/{conversation_id}/{from_version}/{to_version}")
+async def get_diff(conversation_id: str, from_version: str, to_version: str):
+    """
+    Calculates the difference (JSON Patch) between two versions.
+    """
+    # 1. Fetch both versions' data field
+    v1_data = repo.get_version(conversation_id, from_version)
+    v2_data = repo.get_version(conversation_id, to_version)
+
+    if not v1_data or not v2_data:
+        raise HTTPException(status_code=404, detail="One or both versions not found.")
+    
+    # 2. Get the core toxicity data (which is a dict)
+    data1 = v1_data.get('data', {})
+    data2 = v2_data.get('data', {})
+    
+    # 3. Calculate the diff
+    diff = JsonPatch.from_diff(data1, data2)
+    return {"diff": diff.patch}
+    
+    # Placeholder response since we cannot use an external library here:
+    # return {
+    #     "from_version": from_version,
+    #     "to_version": to_version,
+    #     "diff_note": "Logic requires an external library (e.g., jsonpatch) to compare the 'data' field content.",
+    #     "data1_keys": list(data1.keys()),
+    #     "data2_keys": list(data2.keys()),
+    # }
 
 @router.get("/current")
 async def get_current_json():
