@@ -415,15 +415,18 @@ def format_diff(diff_data) -> str:
 
 def create_ui():
     with gr.Blocks(
-        title="Toxicology Data Editor",
-        theme=gr.themes.Soft(),
-        css="""
+        title="Toxicology Data Editor"
+    ) as demo:
+        
+        # Add custom CSS for styling
+        demo.css = """
         .status-success { color: green; }
         .status-error { color: red; }
         .required-field label::after { content: " *"; color: red; }
+        .gradio-container {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
         """
-    ) as demo:
-        
         gr.Markdown("# 🧪 Toxicology Data Editor")
         gr.Markdown("Natural language & form-based interface for editing toxicology JSON data")
         
