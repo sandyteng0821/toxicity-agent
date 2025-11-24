@@ -20,3 +20,6 @@ langgraph-checkpoint-sqlite
 jsonpatch
 # langgraph-checkpoint>=2.0.0 # (update langgraph for sqlite support)
 # langgraph-checkpoint[sqlite] # pip install --force-reinstall "langgraph-checkpoint[sqlite]"
+# Gradio UI
+gradio
+requests
