@@ -55,6 +55,7 @@ class NOAELFormRequest(BaseModel):
     reference_title: str = Field(..., description="參考文獻標題")
     reference_link: Optional[str] = Field(None, description="參考文獻連結 (optional)")
     statement: Optional[str] = Field(None, description="說明 (optional)")
+    conversation_id: Optional[str] = Field(None, description="Conversation id (optional)")
 
     class Config:
         json_schema_extra = {
@@ -68,7 +69,8 @@ class NOAELFormRequest(BaseModel):
                 "note": "Based on oral gavage study",
                 "reference_title": "OECD SIDS MENTHOLS UNEP PUBLICATIONS",
                 "reference_link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90",
-                "statement": "Based on repeated dose toxicity studies"
+                "statement": "Based on repeated dose toxicity studies",
+                "conversation_id": "optional-existing-id"
             }
         }
 
@@ -85,6 +87,7 @@ class DAPFormRequest(BaseModel):
     note: Optional[str] = Field(None, description="備註")
     reference_link: Optional[str] = Field(None, description="參考文獻連結")
     statement: Optional[str] = Field(None, description="說明")
+    conversation_id: Optional[str] = Field(None, description="Conversation id (optional)")
 
     class Config:
         json_schema_extra = {
@@ -97,7 +100,8 @@ class DAPFormRequest(BaseModel):
                 "reference_title": "Expert Assessment of Dermal Absorption",
                 "note": "Based on molecular weight and lipophilicity",
                 "reference_link": None,
-                "statement": "Conservative estimate based on physicochemical properties"
+                "statement": "Conservative estimate based on physicochemical properties",
+                "conversation_id": "optional-existing-id"
             }
         }
 
@@ -188,7 +192,7 @@ async def edit_json(req: EditRequest):
 # Form-based Endpoints
 # ============================================================================
 
-@router.post("/edit-form/noael")
+@router.post("/edit-form/noael", response_model=EditResponse)
 async def edit_noael_form(req: NOAELFormRequest):
     """
     Form-based NOAEL update (zero LLM errors, guaranteed correct)
@@ -206,6 +210,7 @@ async def edit_noael_form(req: NOAELFormRequest):
     - note: Additional notes
     - reference_link: URL to reference
     - statement: Summary statement
+    - conversation_id: Existing conversation ID (auto-generated if not provided)
     
     Example request:
     {
@@ -217,15 +222,18 @@ async def edit_noael_form(req: NOAELFormRequest):
       "study_duration": "90-day",
       "note": "Based on oral gavage study",
       "reference_title": "OECD SIDS MENTHOLS",
-      "reference_link": "https://...",
-      "statement": "Based on repeated dose toxicity studies"
+      "reference_link": "https://hpvchemicals.oecd.org/ui/handler.axd?id=463ce644-e5c8-42e8-962d-3a917f32ab90",
+      "statement": "Based on repeated dose toxicity studies",
+      "conversation_id": "optional-existing-id"
     }
     
     Returns:
     {
-      "message": "✅ NOAEL updated successfully",
       "inci": "L-MENTHOL",
-      "updated_json": { ... }
+      "updated_json": { ... },
+      "raw_response": "✅ NOAEL updated successfully (form-based, no LLM)",
+      "conversation_id": "auto-generated-or-provided-id",
+      "current_version": 1
     }
     """
     try:
@@ -272,23 +280,35 @@ async def edit_noael_form(req: NOAELFormRequest):
             repeated_dose_entry
         ):
             current_json["repeated_dose_toxicity"].append(repeated_dose_entry)
-        
-        # Save to file
+
+        conversation_id = req.conversation_id or str(uuid.uuid4())
+        message = "✅ NOAEL updated successfully (form-based, no LLM)"
+        db.save_version(
+            conversation_id=conversation_id,
+            data=current_json,
+            modification_summary=message
+        )
+
+        # Save result (to file) => for backward compatibility
         write_json(current_json, str(JSON_TEMPLATE_PATH))
+        # Get latest version from DB
+        latest = db.get_current_version(conversation_id)
         
-        return {
-            "message": "✅ NOAEL updated successfully (form-based, no LLM)",
-            "inci": req.inci_name,
-            "updated_json": current_json
-        }
-        
+        return EditResponse(
+            inci=req.inci_name,
+            updated_json=current_json,
+            raw_response=message,
+            conversation_id=conversation_id,
+            current_version=latest.version,
+        )
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update NOAEL: {str(e)}"
         )
 
-@router.post("/edit-form/dap")
+@router.post("/edit-form/dap", response_model=EditResponse)
 async def edit_dap_form(req: DAPFormRequest):
     """Form-based DAP update"""
     try:
@@ -328,14 +348,27 @@ async def edit_dap_form(req: DAPFormRequest):
         if not _is_duplicate_entry(current_json.get("percutaneous_absorption", []), pa_entry):
             current_json["percutaneous_absorption"].append(pa_entry)
         
+        conversation_id = req.conversation_id or str(uuid.uuid4())
+        message = "✅ DAP updated successfully (form-based, no LLM)"
+        db.save_version(
+            conversation_id=conversation_id,
+            data=current_json,
+            modification_summary=message
+        )
+
+        # Save result (to file) => for backward compatibility
         write_json(current_json, str(JSON_TEMPLATE_PATH))
+        # Get latest version from DB
+        latest = db.get_current_version(conversation_id)
         
-        return {
-            "message": "✅ DAP updated successfully (form-based, no LLM)",
-            "inci": req.inci_name,
-            "updated_json": current_json
-        }
-        
+        return EditResponse(
+            inci=req.inci_name,
+            updated_json=current_json,
+            raw_response=message,
+            conversation_id=conversation_id,
+            current_version=latest.version,
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update DAP: {str(e)}")
 
