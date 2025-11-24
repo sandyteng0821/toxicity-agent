@@ -428,3 +428,26 @@ async def reset_json():
         "message": "Reset to template successful",
         "data": JSON_TEMPLATE
     }
+
+@router.post("/reset/{conversation_id}/{version}")
+async def reset_version(conversation_id: str, version: str):
+    """Reset JSON data for a given conversation_id to a specified version"""
+    data = repo.get_version(conversation_id, version)
+
+    if not data:
+        raise HTTPException(status_code=404, detail="One or both versions not found.")
+    
+    json_data = data.get('data', {})
+    message = f"Reset to version {version} for {conversation_id} successful"
+
+    db.save_version(
+        conversation_id=conversation_id,
+        data=json_data,
+        modification_summary=message
+    )
+
+    write_json(json_data, str(JSON_TEMPLATE_PATH))
+    return {
+        "message": message,
+        "data": json_data
+    }
