@@ -5,7 +5,6 @@ from langchain_openai import ChatOpenAI
 from ..utils.patch_utils import (
     _fallback_to_full_json
 )
-from ..utils.llm_factory import get_llm
 
 # ============================================================================
 # Fallback (Full JSON Rewrite Operation) (LANGGRAPH NODE)
@@ -20,10 +19,10 @@ def fallback_full_node(state):
     current_inci = state.get("current_inci")
     conversation_id = state.get("conversation_id")
     state["last_patches"] = []
+    state["fallback_used"] = True
 
     # Setup LLM
-    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    llm = get_llm()
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     # Full JSON regeneration logic
     # Patch failed - fallback (use v1 node)
