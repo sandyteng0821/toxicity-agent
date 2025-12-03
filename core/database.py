@@ -1,5 +1,5 @@
 # database.py
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Boolean
 # from sqlalchemy.ext.declarative import declarative_base # deprecated
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -16,13 +16,16 @@ class ToxicityVersion(Base):
     __tablename__ = "toxicity_versions"
     
     id = Column(Integer, primary_key=True)
-    conversation_id = Column(String(100), index=True)
+    conversation_id = Column(String(100), index=True) # item_id / thread_id
+    batch_id = batch_id = Column(String(100), index=True, nullable=True)  # for batch record 
+    inci_name_track = Column(String(255), nullable=True) # <<< NEW FIELD: INCI being edited
     version = Column(Integer)
     data = Column(Text)  # JSON string
     modification_summary = Column(Text)
     # created_at = Column(DateTime, default=datetime.utcnow) # deprecated 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     patch_operations = Column(Text, nullable=True) # Add patch operation
+    is_batch_item = Column(Boolean, default=False) # <<< NEW FIELD: Optional flag to indicate a batch item
 
 class ToxicityDB:
     """Database manager for toxicity data versioning"""
@@ -66,6 +69,102 @@ class ToxicityDB:
             session.commit()
             session.refresh(version)
             return version
+        finally:
+            session.close()
+
+    def save_batch_item(
+        self,
+        batch_id: str, # The overall batch ID (from the POST request)
+        item_id: str,  # The unique ID for this single edit (LangGraph's thread_id)
+        inci_name: str,
+        data: dict,
+        instruction: str,
+        patch_operations: Optional[List[Dict]] = None,
+        patch_success: bool = False,
+        fallback_used: bool = False,
+    ) -> ToxicityVersion:
+        """Save the final result of a single batch item."""
+        session = self.get_session()
+        try:
+            # 1. Use item_id for versioning (to scope this specific run)
+            # Note: If you only want one record per INCI, you'd use inci_name here.
+            # But using item_id is safer for isolated tracing.
+            last_version = session.query(ToxicityVersion)\
+                .filter(ToxicityVersion.conversation_id == item_id)\
+                .order_by(ToxicityVersion.version.desc())\
+                .first()
+            
+            next_version = (last_version.version + 1) if last_version else 1
+            
+            # 2. Construct the modification summary
+            summary = f"[BATCH] INCI: {inci_name} | Success: {patch_success} | Fallback: {fallback_used} | Instr: {instruction[:100]}..."
+
+            version = ToxicityVersion(
+                conversation_id=item_id, # Scoped by the unique item ID
+                batch_id=batch_id,
+                inci_name_track=inci_name,
+                version=next_version,
+                data=json.dumps(data, ensure_ascii=False),
+                modification_summary=summary,
+                patch_operations=json.dumps(patch_operations, ensure_ascii=False) if patch_operations else None,
+                is_batch_item=True, # New field
+                # Optional: Add batch_id to the metadata if your DB allows
+            )
+
+            session.add(version)
+            session.commit()
+            session.refresh(version)
+            return version
+        finally:
+            session.close()
+
+    def get_batch_items(self, batch_id: str) -> List[dict]:
+        """Get all items in a batch by batch_id"""
+        session = self.get_session()
+        try:
+            versions = session.query(ToxicityVersion)\
+                .filter(ToxicityVersion.batch_id == batch_id)\
+                .order_by(ToxicityVersion.created_at.asc())\
+                .all()
+            
+            return [
+                {
+                    "id": v.id,
+                    "item_id": v.conversation_id,
+                    "batch_id": v.batch_id,
+                    "inci_name": v.inci_name_track,
+                    "version": v.version,
+                    "summary": v.modification_summary,
+                    "timestamp": v.created_at.isoformat(),
+                    "data": json.loads(v.data) if v.data else None,
+                }
+                for v in versions
+            ]
+        finally:
+            session.close()
+
+    def get_by_inci_name(self, inci_name: str) -> List[dict]:
+        """Get all versions for a specific INCI name"""
+        session = self.get_session()
+        try:
+            versions = session.query(ToxicityVersion)\
+                .filter(ToxicityVersion.inci_name_track == inci_name)\
+                .order_by(ToxicityVersion.created_at.desc())\
+                .all()
+            
+            return [
+                {
+                    "id": v.id,
+                    "item_id": v.conversation_id,
+                    "batch_id": v.batch_id,
+                    "inci_name": v.inci_name_track,
+                    "version": v.version,
+                    "summary": v.modification_summary,
+                    "timestamp": v.created_at.isoformat(),
+                    "data": json.loads(v.data) if v.data else None,
+                }
+                for v in versions
+            ]
         finally:
             session.close()
     
