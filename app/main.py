@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from app.api.routes_edit import router as edit_router
 from app.api.routes_edit_form import router as edit_form_router
 from app.api.routes_generate import router as toxicity_form_router
+from app.api.routes_batchedit import router as batchedit_router
 from app.graph.build_graph import build_graph
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.add_middleware(
 app.include_router(edit_router)
 app.include_router(edit_form_router)
 app.include_router(toxicity_form_router)
+app.include_router(batchedit_router)
 
 @app.get("/")
 def root():
