@@ -1,5 +1,84 @@
 # Changelog
 
+## [v4.0.0] - 2024-12-04
+feat(v4.0.0): unified edit graph with form-based editing integration
+
+### Summary
+This release integrates form-based editing directly into the main edit graph,
+allowing all edit types (NLI, structured JSON, raw text extraction) to be
+handled through a single `/api/edit` endpoint. The graph now automatically
+classifies user intent and routes to the appropriate processing path.
+
+### Major Changes
+- **Unified Edit Graph Architecture**:
+  - Single entry point for all edit types via `/api/edit`
+  - Intent classification in `parse_instruction.py` (NLI_EDIT, FORM_EDIT_STRUCTURED, FORM_EDIT_RAW, NO_EDIT)
+  - Conditional routing based on detected intent
+
+- **New Nodes**:
+  - `form_apply.py` – Directly applies NOAEL/DAP payloads to json_data (no HTTP overhead)
+  - `toxicity_extract.py` – Invokes `process_correction_form()` for raw text extraction
+
+- **Enhanced Parse Instruction**:
+  - Added `classify_intent()` with heuristics + LLM fallback
+  - Added `extract_form_payloads()` to parse JSON from user input
+  - Handles INCI prefix in JSON input (e.g., "INCI: NAME\n{...}")
+
+- **State Updates**:
+  - Added `intent_type` – Classification result
+  - Added `form_payloads` – Extracted NOAEL/DAP payloads
+  - Added `form_api_response` – Response from form processing
+  - Added `form_types_processed` – List of applied form types
+
+### Graph Flow
+```
+PARSE_INSTRUCTION → Router
+    ├── NLI_EDIT → FAST_UPDATE → PATCH_GEN → PATCH_APPLY → FALLBACK → SAVE
+    ├── FORM_EDIT_STRUCTURED → FORM_APPLY → SAVE
+    ├── FORM_EDIT_RAW → TOXICITY_EXTRACT → FORM_APPLY → SAVE
+    └── NO_EDIT → SAVE
+```
+
+### Benefits
+- **Single Endpoint**: All edits through `/api/edit` (simpler API surface)
+- **Auto-Detection**: No need to choose endpoint; graph routes automatically
+- **No HTTP Overhead**: Form data applied directly (vs calling localhost endpoints)
+- **Backward Compatible**: Existing NLI edits work unchanged
+- **Raw Text Support**: Paste correction forms directly into instruction field
+
+### Usage Examples
+```python
+# NLI Edit (existing behavior)
+{"instruction": "Set NOAEL to 200 mg/kg for Rats", "inci_name": "L-MENTHOL"}
+
+# Structured JSON (new)
+{"instruction": "{\"noael\": {\"value\": 100, \"unit\": \"mg/kg bw/day\", ...}}", "inci_name": "CITRAL"}
+
+# Raw Text Extraction (new)
+{"instruction": "NOAEL: 50 mg/kg\nSpecies: Rat\nDuration: 90 days\n...", "inci_name": "CITRAL"}
+```
+
+### Files Changed
+- `app/graph/build_graph.py` – Added routing logic + new nodes
+- `app/graph/state.py` – Added 4 new state keys
+- `app/graph/nodes/parse_instruction.py` – Added intent classification
+- `app/graph/nodes/form_apply.py` – New node for direct payload application
+- `app/graph/nodes/toxicity_extract.py` – New node for raw text extraction
+
+### Testing
+- All 28 existing tests passing
+- New tests in `tests/test_integrated_workflows.py`:
+  - Intent classification tests (NLI, JSON, raw text)
+  - Toxicity graph integration tests
+  - Full graph flow tests
+
+### Notes
+- Form-based endpoints (`/api/edit-form/noael`, `/api/edit-form/dap`) still available
+- Recommended to use unified `/api/edit` for new integrations
+- `FORM_APPLY` uses same logic as form endpoints (REPLACE behavior for NOAEL/DAP)
+
+---
+
 ## [v3.0.0] - 2025-12-03
 feat(v3.0.0): batch edit system + database query enhancements + toxicity imputation modules
 
