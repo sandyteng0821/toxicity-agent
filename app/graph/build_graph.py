@@ -11,6 +11,9 @@ from app.graph.state import JSONEditState
 # from app.graph.nodes.llm_edit_node import llm_edit_node
 # from app.graph.nodes.llm_edit_node_with_patch import llm_edit_node_with_patch
 # from app.graph.nodes.edit_orchestrator import llm_edit_node_with_patch
+from app.graph.nodes.toxicity_extract import toxicity_extract_node
+from app.graph.nodes.form_apply import form_apply_node
+from app.graph.nodes.form_api_call import form_api_call_node
 from app.graph.nodes.load_json import load_json_node
 from app.graph.nodes.parse_instruction import parse_instruction_node
 from app.graph.nodes.fast_update import fast_update_node
@@ -33,12 +36,31 @@ def get_db_connection():
         )
     return _db_connection
 
+# Routing function 
+def route_by_intent(state):
+    """Route based on classified intent."""
+    intent = state.get("intent_type", "NLI_EDIT")
+
+    if intent == "FORM_EDIT_STRUCTURED":
+        return "form_apply"  # JSON input → apply directly
+    elif intent == "FORM_EDIT_RAW":
+        return "toxicity_extract"  # Raw text → extract first
+    elif intent == "NO_EDIT":
+        return "save"
+    return "nli_path"  # Default: existing NLI flow
+
+def route_after_extract(state):
+    """Route after toxicity extraction."""
+    if state.get("form_payloads"):
+        return "form_apply"
+    return "save"  # No data extracted
+
 def build_graph(use_test_db=False):
     """
-    Build and compile the toxicology editing workflow with chat history
-    
-    Returns:
-        Compiled LangGraph application with SqliteSaver checkpointer
+    Build unified edit graph supporting:
+    - NLI edits (existing flow)
+    - Structured JSON input (form_apply)
+    - Raw text extraction (toxicity_extract → form_apply)
     """
     graph = StateGraph(JSONEditState)
     
@@ -51,6 +73,10 @@ def build_graph(use_test_db=False):
     graph.add_node("FALLBACK", fallback_full_node)
     graph.add_node("SAVE", save_json_node)
 
+    # Nodes for graph integration
+    graph.add_node("TOXICITY_EXTRACT", toxicity_extract_node)
+    graph.add_node("FORM_APPLY", form_apply_node)
+
     # graph.add_node("edit", llm_edit_node)
     # graph.add_node("edit", llm_edit_node_with_patch) # deprecated
     
@@ -60,7 +86,19 @@ def build_graph(use_test_db=False):
 
     # transitions
     graph.add_edge("LOAD_JSON", "PARSE_INSTRUCTION")
-    graph.add_edge("PARSE_INSTRUCTION", "FAST_UPDATE")
+    # graph.add_edge("PARSE_INSTRUCTION", "FAST_UPDATE")
+    
+    # Conditional routing after parse
+    graph.add_conditional_edges(
+        "PARSE_INSTRUCTION",
+        route_by_intent,
+        {
+            "nli_path": "FAST_UPDATE", # Existing edit flow (v3.0.0)
+            "form_apply": "FORM_APPLY", # Form based path 
+            "toxicity_extract": "TOXICITY_EXTRACT",
+            "save": "SAVE"               # No edit needed
+        }
+    )
     
     # If fast-path updated anything → skip LLM
     graph.add_conditional_edges(
@@ -73,10 +111,6 @@ def build_graph(use_test_db=False):
     )
 
     graph.add_edge("PATCH_GEN", "PATCH_APPLY")
-
-
-    graph.add_edge("PATCH_GEN", "PATCH_APPLY")
-
     graph.add_conditional_edges(
         "PATCH_APPLY",
         lambda s: "SAVE" if s["patch_success"] else "FALLBACK",
@@ -85,8 +119,14 @@ def build_graph(use_test_db=False):
             "FALLBACK": "FALLBACK",
         }
     )
-
     graph.add_edge("FALLBACK", "SAVE")
+    # Form path
+    graph.add_conditional_edges(
+        "TOXICITY_EXTRACT",
+        route_after_extract,
+        {"form_apply": "FORM_APPLY", "save": "SAVE"}
+    )
+    graph.add_edge("FORM_APPLY", "SAVE")
 
     # # Add edges
     # graph.add_conditional_edges(
