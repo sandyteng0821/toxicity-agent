@@ -56,19 +56,61 @@ def toxicity_classify_node(state):
         correction_form_text=correction_form_text,
     )
     
-    print(f"📋 Task Classification: {classification.task_type}")
-    print(f"   - Has NOAEL: {classification.has_noael_data}")
-    print(f"   - Has DAP: {classification.has_dap_data}")
-    print(f"   - INCI: {classification.inci_name}")
+    # ✅ ADDED: Handle None classification
+    if classification is None:
+        # Fallback to manual classification
+        import re
+        text_lower = correction_form_text.lower()
+        
+        # Check for keywords
+        has_noael = any(keyword in text_lower for keyword in ["noael", "mg/kg", "ld50"])
+        has_dap = any(keyword in text_lower for keyword in ["dap", "absorption", "經皮"])
+        
+        # Determine task type
+        if has_noael and has_dap:
+            task_type = "both"
+        elif has_noael:
+            task_type = "noael"
+        elif has_dap:
+            task_type = "dap"
+        else:
+            task_type = "unknown"
+        
+        # Extract INCI name
+        inci_match = re.search(r"INCI[：:]\s*([^\n]+)", correction_form_text, re.IGNORECASE)
+        current_inci = inci_match.group(1).strip() if inci_match else ""
+        
+        # Set state values
+        state["task_type"] = task_type
+        state["has_noael_data"] = has_noael
+        state["has_dap_data"] = has_dap
+        state["current_inci"] = current_inci
+        
+        print(f"⚠️ LLM returned None, using fallback classification: {task_type}")
+        print(f"   - Has NOAEL: {has_noael}")
+        print(f"   - Has DAP: {has_dap}")
+        print(f"   - INCI: {current_inci}")
+        
+        msg = AIMessage(content=f"Task classified as: {task_type} (fallback)")
+        state["messages"] = [msg]
+        
+        return state
     
-    state["task_type"] = classification.task_type
-    state["has_noael_data"] = classification.has_noael_data
-    state["has_dap_data"] = classification.has_dap_data
+    # ✅ ADDED: Handle missing attributes
+    print(f"📋 Task Classification: {getattr(classification, 'task_type', 'unknown')}")
+    print(f"   - Has NOAEL: {getattr(classification, 'has_noael_data', False)}")
+    print(f"   - Has DAP: {getattr(classification, 'has_dap_data', False)}")
+    print(f"   - INCI: {getattr(classification, 'inci_name', '')}")
     
-    if classification.inci_name:
-        state["current_inci"] = classification.inci_name
+    state["task_type"] = getattr(classification, 'task_type', 'unknown')
+    state["has_noael_data"] = getattr(classification, 'has_noael_data', False)
+    state["has_dap_data"] = getattr(classification, 'has_dap_data', False)
     
-    msg = AIMessage(content=f"Task classified as: {classification.task_type}")
+    inci_name = getattr(classification, 'inci_name', None)
+    if inci_name:
+        state["current_inci"] = inci_name
+    
+    msg = AIMessage(content=f"Task classified as: {state['task_type']}")
     state["messages"] = [msg]
     
     return state
