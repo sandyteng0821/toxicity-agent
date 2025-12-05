@@ -41,11 +41,12 @@ class ToxicityDB:
     def save_version(
             self, 
             conversation_id: str, 
+            inci_name: str, # <<< NEW MANDATORY PARAMETER for inci name tracking 
             data: dict, 
             modification_summary: str, 
             patch_operations: Optional[List[Dict]] = None
             ) -> ToxicityVersion:
-        """Save a new version"""
+        """Save a new version (for non-batch/single-item edits)"""
         session = self.get_session()
         try:
             last_version = session.query(ToxicityVersion)\
@@ -57,6 +58,7 @@ class ToxicityDB:
             
             version = ToxicityVersion(
                 conversation_id=conversation_id,
+                inci_name_track=inci_name,
                 version=next_version,
                 data=json.dumps(data, ensure_ascii=False),
                 modification_summary=modification_summary

@@ -58,6 +58,7 @@ def fast_update_node(state):
     # Save to DB with patches
     db.save_version(
         conversation_id=conversation_id,
+        inci_name=state.get("current_inci", "INCI_NAME"),
         data=updated_json,
         modification_summary=f"fastpath update: Updated {', '.join(toxicology_sections.keys())}",
         patch_operations=[p.model_dump() for p in patches]

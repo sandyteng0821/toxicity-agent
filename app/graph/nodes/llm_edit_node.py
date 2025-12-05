@@ -73,6 +73,7 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
         # Save to DB
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=current_inci,
             data=updated_json,
             modification_summary=f"Updated {', '.join(toxicology_sections.keys())}"
         )
@@ -105,6 +106,7 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
         # NEW: Save to DB
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=current_inci,
             data=merged_json,
             modification_summary=f"Updated {', '.join(updates.keys())}"
         )

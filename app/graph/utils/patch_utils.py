@@ -240,6 +240,7 @@ def _fallback_to_full_json(
         # Save to DB (without patch since we generated full JSON)
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=merged_json,
             modification_summary=f"Updated {', '.join(updates.keys())}"
         )

@@ -125,6 +125,7 @@ async def edit_json(req: EditRequest):
         if req.initial_data:
             db.save_version(
                 conversation_id=conv_id,
+                inci_name=req.inci_name,
                 data=req.initial_data,
                 modification_summary="Initial data"
             )
@@ -143,6 +144,7 @@ async def edit_json(req: EditRequest):
             current_json = read_json()
             db.save_version(
                 conversation_id=conv_id,
+                inci_name=req.inci_name,
                 data=current_json,
                 modification_summary="Load from file"
             )
@@ -168,6 +170,7 @@ async def edit_json(req: EditRequest):
         
         db.save_version(
             conversation_id=conv_id,
+            inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=result["json_data"],
             modification_summary=result.get("response", "Modified data")[:200]  # Truncate if long
         )
@@ -285,6 +288,7 @@ async def edit_noael_form(req: NOAELFormRequest):
         message = "✅ NOAEL updated successfully (form-based, no LLM)"
         db.save_version(
             conversation_id=conversation_id,
+            inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=current_json,
             modification_summary=message
         )
@@ -352,6 +356,7 @@ async def edit_dap_form(req: DAPFormRequest):
         message = "✅ DAP updated successfully (form-based, no LLM)"
         db.save_version(
             conversation_id=conversation_id,
+            inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=current_json,
             modification_summary=message
         )
@@ -475,6 +480,7 @@ async def reset_version(conversation_id: str, version: str):
 
     db.save_version(
         conversation_id=conversation_id,
+        inci_name= json_data.get('inci', 'INCI_NAME'),
         data=json_data,
         modification_summary=message
     )

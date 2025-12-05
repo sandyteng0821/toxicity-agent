@@ -99,6 +99,7 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
         # Save to DB with patches
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=updated_json,
             modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
             patch_operations=[p.model_dump() for p in patches]
@@ -142,6 +143,7 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
             # Save to DB with patch
             db.save_version(
                 conversation_id=conversation_id,
+                inci_name=state.get("current_inci", "INCI_NAME"),
                 data=updated_json,
                 modification_summary=f"{patch_op.op} at {patch_op.path}",
                 patch_operations=[patch_op.model_dump()]

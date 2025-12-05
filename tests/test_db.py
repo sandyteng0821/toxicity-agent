@@ -11,7 +11,7 @@ db = ToxicityDB()
 
 # Save initial version
 initial_data = {"toxicity_score": 0.8, "categories": {"hate": 0.9}}
-db.save_version("test-conv", initial_data, "Initial data")
+db.save_version(conversation_id="test-conv", inci_name="test-conv-inci", data=initial_data, modification_summary="Initial data")
 
 # Get it back
 version = db.get_current_version("test-conv")

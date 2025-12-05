@@ -263,6 +263,7 @@ def _fallback_to_full_json(
         # Save to DB (without patch since we generated full JSON)
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=merged_json,
             modification_summary=f"Updated {', '.join(updates.keys())}"
         )
@@ -354,6 +355,7 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
         # Save to DB with patches
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=updated_json,
             modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
             patch_operations=[p.model_dump() for p in patches]
@@ -397,6 +399,7 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
             # Save to DB with patch
             db.save_version(
                 conversation_id=conversation_id,
+                inci_name=state.get("current_inci", "INCI_NAME"),
                 data=updated_json,
                 modification_summary=f"{patch_op.op} at {patch_op.path}",
                 patch_operations=[patch_op.model_dump()]
@@ -474,6 +477,7 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
         # Save to DB
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=updated_json,
             modification_summary=f"Updated {', '.join(toxicology_sections.keys())}"
         )
@@ -506,6 +510,7 @@ def llm_edit_node(state: JSONEditState) -> JSONEditState:
         # NEW: Save to DB
         db.save_version(
             conversation_id=conversation_id,
+            inci_name=state.get("current_inci", "INCI_NAME"),
             data=merged_json,
             modification_summary=f"Updated {', '.join(updates.keys())}"
         )

@@ -61,6 +61,7 @@ def test_save_version_with_patches(test_db, test_data, test_patches):
     # Save with patches
     version = test_db.save_version(
         conversation_id="test-001",
+        inci_name="test-inci-001",
         data=test_data,
         modification_summary="Test save with patches",
         patch_operations=test_patches
@@ -80,6 +81,7 @@ def test_retrieve_version_patches(test_db, test_data, test_patches):
     # First save a version with patches
     test_db.save_version(
         conversation_id="test-002",
+        inci_name="test-inci-002",
         data=test_data,
         modification_summary="Test save with patches",
         patch_operations=test_patches
@@ -103,6 +105,7 @@ def test_modification_history_with_patches(test_db, test_data, test_patches):
     # Save multiple versions with patches
     test_db.save_version(
         conversation_id="test-003",
+        inci_name="test-inci-003",
         data=test_data,
         modification_summary="First update",
         patch_operations=test_patches
@@ -111,6 +114,7 @@ def test_modification_history_with_patches(test_db, test_data, test_patches):
     # Save another version
     test_db.save_version(
         conversation_id="test-003",
+        inci_name="test-inci-003",
         data=test_data,
         modification_summary="Second update",
         patch_operations=test_patches
@@ -134,6 +138,7 @@ def test_save_version_without_patches(test_db, test_data):
     # Save without patches
     version = test_db.save_version(
         conversation_id="test-004",
+        inci_name="test-inci-004",
         data=test_data,
         modification_summary="Test save without patches"
         # No patch_operations parameter
@@ -176,6 +181,7 @@ if __name__ == "__main__":
     print("Test 1: Save with patches")
     version = db.save_version(
         conversation_id="manual-test-001",
+        inci_name="manual-test-inci-001",
         data=test_data,
         modification_summary="Test save with patches",
         patch_operations=test_patches
