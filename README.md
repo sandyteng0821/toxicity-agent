@@ -4,14 +4,41 @@
 
 ## 🎯 Overview
 
-FastAPI service that transforms natural language into structured toxicology JSON updates using LLMs (GPT-4o-mini or Llama3.1:8b).
+FastAPI service that transforms natural language into structured toxicology JSON updates using LLMs (GPT-4o-mini or Llama3.1:8b). **Now featuring unified edit workflow (v4.0.0), batch operations, and raw-text extraction.**
 
 **Key Features:**
-- Natural language to JSON transformation
+- Natural language to JSON transformation (NLI edits)
+- **Unified edit workflow** - single endpoint for all edit types
+- **Batch editing** for multiple ingredients
+- **Raw text extraction** from correction forms
 - Multi-model support (OpenAI / Ollama)
 - Automatic validation and normalization
 - Supports NOAEL, DAP, acute toxicity, and more
 - Anti-cheating safeguards
+- **JSON Patch engine** for safe structured editing
+
+---
+
+## 🏗️ Architecture Quick View
+
+> For detailed technical architecture, see [ARCHITECTURE.md](ARCHITECTURE.md)
+
+The system uses a **LangGraph workflow** that routes edits intelligently:
+
+```mermaid
+graph TD
+    User -->|Natural Language| Classifier
+    Classifier -->|NLI Edit| LLM_Patch_Generation
+    Classifier -->|Structured Edit| Direct_Apply
+    Classifier -->|Correction Form| Text_Extraction
+    All_Paths --> JSON_Validation --> Database_Save
+```
+
+Core Components:
+- FastAPI - REST interface
+- LangGraph - Workflow orchestration
+- SQLite - Data persistence
+- Gradio - Optional web UI
 
 ---
 
@@ -167,6 +194,20 @@ curl -X POST http://localhost:8000/api/edit \
 
 ---
 
+## 🔄 Unified Edit System (v4.0.0)
+
+The `/api/edit` endpoint now handles all edit types:
+
+| Edit Type | Trigger | Example |
+|-----------|---------|---------|
+| **Natural Language** | "Set NOAEL to 200 mg/kg" | Standard instruction |
+| **Structured Edit** | Direct JSON payload | `{"NOAEL": [{"value": 200, ...}]}` |
+| **Correction Form** | Pasted text from forms | Raw text extraction to structured data |
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for technical details.
+
+---
+
 ## 🎯 Supported Update Types
 
 | Type | Example Instruction |
@@ -175,6 +216,21 @@ curl -X POST http://localhost:8000/api/edit \
 | **DAP** | `"Set DAP to 5% based on expert judgment"` |
 | **Acute Toxicity** | `"Add acute toxicity study from FDA showing LD50 of 500 mg/kg"` |
 | **Skin Irritation** | `"Add skin irritation study showing no irritation"` |
+
+---
+
+## 📊 Database Integration
+
+The system now persists data to SQLite:
+- `toxicity_data.db` - Main toxicology data
+- `chat_memory.db` - Conversation history
+- Supports batch operations with `batch_id` tracking
+
+Query endpoints:
+```bash
+GET /api/edit/batch/{batch_id}      # Get batch status
+GET /api/edit/inci/{inci_name}      # Get ingredient history
+```
 
 ---
 
