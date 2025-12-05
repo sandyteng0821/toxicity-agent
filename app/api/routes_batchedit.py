@@ -90,7 +90,7 @@ async def batch_edit(request: BatchEditRequest):
         inci_json_cache[inci_name] = json_data
 
         # DB Call to save batch item
-        db.save_batch_item(
+        db.save_modification(
             batch_id=batch_id,
             item_id=item_id,
             inci_name=inci_name,
@@ -100,6 +100,16 @@ async def batch_edit(request: BatchEditRequest):
             patch_success=patch_success,
             fallback_used=fallback_used
         )
+        # db.save_batch_item(
+        #     batch_id=batch_id,
+        #     item_id=item_id,
+        #     inci_name=inci_name,
+        #     data=json_data,
+        #     instruction=instruction,
+        #     patch_operations=patch_ops,
+        #     patch_success=patch_success,
+        #     fallback_used=fallback_used
+        # )
         
         json_results.append(json_data)
         fall_back_states.append(fallback_used or False)

@@ -120,6 +120,55 @@ class ToxicityDB:
         finally:
             session.close()
 
+    def save_modification(
+            self,
+            item_id: str,           # Use item_id (LangGraph thread_id) as the conversation_id
+            inci_name: str,         # Mandatory field
+            data: dict,
+            instruction: str,       # Use instruction for the modification_summary base
+            patch_operations: Optional[List[Dict]] = None,
+            # Batch/Audit fields (made optional)
+            batch_id: Optional[str] = None, 
+            is_batch_item: bool = False,
+            patch_success: bool = True,     # Assume success unless specified (for non-batch)
+            fallback_used: bool = False,
+        ) -> ToxicityVersion:
+            """Saves a toxicity data version, supporting single, batch, and audit tracking."""
+            session = self.get_session()
+            try:
+                # 1. Version Calculation (scoped by item_id/conversation_id)
+                last_version = session.query(ToxicityVersion)\
+                    .filter(ToxicityVersion.conversation_id == item_id)\
+                    .order_by(ToxicityVersion.version.desc())\
+                    .first()
+                next_version = (last_version.version + 1) if last_version else 1
+                
+                # 2. Construct the modification summary
+                # Make the summary universal, defaulting to non-batch format
+                summary_prefix = "[BATCH] " if is_batch_item else "[EDIT] "
+                summary = (
+                    f"{summary_prefix}INCI: {inci_name} | Success: {patch_success} | "
+                    f"Fallback: {fallback_used} | Instr: {instruction[:100]}..."
+                )
+
+                version = ToxicityVersion(
+                    conversation_id=item_id,
+                    batch_id=batch_id,
+                    inci_name_track=inci_name,
+                    version=next_version,
+                    data=json.dumps(data, ensure_ascii=False),
+                    modification_summary=summary,
+                    patch_operations=json.dumps(patch_operations, ensure_ascii=False) if patch_operations else None,
+                    is_batch_item=is_batch_item,
+                )
+
+                session.add(version)
+                session.commit()
+                session.refresh(version)
+                return version
+            finally:
+                session.close()
+
     def get_batch_items(self, batch_id: str) -> List[dict]:
         """Get all items in a batch by batch_id"""
         session = self.get_session()
