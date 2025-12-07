@@ -353,12 +353,21 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
         response_msg = f"✅ Updated toxicology data for {current_inci}: {', '.join(toxicology_sections.keys())}"
         
         # Save to DB with patches
-        db.save_version(
-            conversation_id=conversation_id,
+        # db.save_version(
+        #     conversation_id=conversation_id,
+        #     inci_name=state.get("current_inci", "INCI_NAME"),
+        #     data=updated_json,
+        #     modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
+        #     patch_operations=[p.model_dump() for p in patches]
+        # )
+        db.save_modification( # 1. MIGRATION: Replaced save_version
+            item_id=conversation_id,
             inci_name=state.get("current_inci", "INCI_NAME"),
             data=updated_json,
-            modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
-            patch_operations=[p.model_dump() for p in patches]
+            instruction=state["user_input"], # 2. NEW PARAMETER: Replaced modification_summary
+            patch_operations=[p.model_dump() for p in patches],
+            is_batch_item=False, # 3. NEW AUDIT FLAG
+            patch_success=True 
         )
         
         ai_message = AIMessage(content=response_msg)
@@ -366,7 +375,7 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
         state["json_data"] = updated_json
         state["response"] = response_msg
         state["messages"] = [ai_message]
-        state["last_patches"] = patches  # ✨ NEW: Track patches
+        state["last_patches"] = [patch_op.model_dump()]  # ✨ NEW: Track patches
         
         return state
     
@@ -397,12 +406,21 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
             response_msg = f"✅ Applied {patch_op.op} operation at {patch_op.path} for {current_inci}"
             
             # Save to DB with patch
-            db.save_version(
-                conversation_id=conversation_id,
+            # db.save_version(
+            #     conversation_id=conversation_id,
+            #     inci_name=state.get("current_inci", "INCI_NAME"),
+            #     data=updated_json,
+            #     modification_summary=f"{patch_op.op} at {patch_op.path}",
+            #     patch_operations=[patch_op.model_dump()]
+            # )
+            db.save_modification( # 1. MIGRATION: Replaced save_version
+                item_id=conversation_id,
                 inci_name=state.get("current_inci", "INCI_NAME"),
                 data=updated_json,
-                modification_summary=f"{patch_op.op} at {patch_op.path}",
-                patch_operations=[patch_op.model_dump()]
+                instruction=state["user_input"], # 2. NEW PARAMETER: Replaced modification_summary
+                patch_operations=[patch_op.model_dump()],
+                is_batch_item=False, # 3. NEW AUDIT FLAG
+                patch_success=True
             )
             
             ai_message = AIMessage(content=response_msg)
@@ -410,12 +428,13 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
             state["json_data"] = updated_json
             state["response"] = response_msg
             state["messages"] = [ai_message]
-            state["last_patches"] = [patch_op]  # ✨ NEW: Track patch
+            state["last_patches"] = [patch_op.model_dump()] # ✨ NEW: Track patch
             
             return state
         else:
             # Patch failed - fallback
             print("⚠️ JSON Patch failed, falling back to full JSON generation")
+            state["last_patches"] = []
             return _fallback_to_full_json(state, llm, current_json, current_inci, conversation_id)
     
     except Exception as e:

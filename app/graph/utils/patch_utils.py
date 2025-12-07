@@ -238,11 +238,23 @@ def _fallback_to_full_json(
         response_msg = f"✅ Successfully updated {list(updates.keys())} for {current_inci}"
         
         # Save to DB (without patch since we generated full JSON)
-        db.save_version(
-            conversation_id=conversation_id,
+        # db.save_version(
+        #     conversation_id=conversation_id,
+        #     inci_name=state.get("current_inci", "INCI_NAME"),
+        #     data=merged_json,
+        #     modification_summary=f"Updated {', '.join(updates.keys())}"
+        # )
+        db.save_modification(
+            item_id=conversation_id, # Replaces conversation_id
             inci_name=state.get("current_inci", "INCI_NAME"),
             data=merged_json,
-            modification_summary=f"Updated {', '.join(updates.keys())}"
+            # Use the original user input for the comprehensive instruction log
+            instruction=state["user_input"], 
+            patch_operations=None, # Explicitly None or [] since no JSON Patch was generated
+            # Audit Flags for Fallback Path
+            is_batch_item=False,
+            patch_success=True, # The fallback was successful in updating the data
+            fallback_used=True  # CRUCIAL: Flag this as a fallback transaction
         )
         
         ai_message = AIMessage(content=response_msg)
@@ -250,6 +262,8 @@ def _fallback_to_full_json(
         state["json_data"] = merged_json
         state["response"] = response_msg
         state["messages"] = [ai_message]
+        state["fallback_used"] = True
+        state["last_patches"] = []
         
     except json.JSONDecodeError as e:
         error_msg = f"⚠️ LLM output was not valid JSON: {str(e)}"

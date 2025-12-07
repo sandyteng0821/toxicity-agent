@@ -123,12 +123,23 @@ async def edit_json(req: EditRequest):
         conv_id = req.conversation_id or str(uuid.uuid4())
         # NEW: Save initial data if provided
         if req.initial_data:
-            db.save_version(
-                conversation_id=conv_id,
+            # db.save_version(
+            #     conversation_id=conv_id,
+            #     inci_name=req.inci_name,
+            #     data=req.initial_data,
+            #     modification_summary="Initial data"
+            # )
+            # --- START MIGRATION 1/3 ---
+            db.save_modification( # Replaced save_version
+                item_id=conv_id,  # Renamed from conversation_id
                 inci_name=req.inci_name,
                 data=req.initial_data,
-                modification_summary="Initial data"
+                instruction="Initial data via API request", # New instruction log
+                patch_operations=None, # No patch needed for initial load
+                is_batch_item=False,
+                patch_success=True
             )
+            # --- END MIGRATION 1/3 ---
         
         # NEW: Configure thread for memory 
         config = {"configurable": {"thread_id": conv_id}}
@@ -142,12 +153,23 @@ async def edit_json(req: EditRequest):
         else:
             # Fallback: Load from file and save as version 1
             current_json = read_json()
-            db.save_version(
-                conversation_id=conv_id,
+            # db.save_version(
+            #     conversation_id=conv_id,
+            #     inci_name=req.inci_name,
+            #     data=current_json,
+            #     modification_summary="Load from file"
+            # )
+            # --- START MIGRATION 2/3 ---
+            db.save_modification( # Replaced save_version
+                item_id=conv_id, # Renamed from conversation_id
                 inci_name=req.inci_name,
                 data=current_json,
-                modification_summary="Load from file"
+                instruction="Load from file (V1 initialization)", # New instruction log
+                patch_operations=None, # No patch needed for initial load
+                is_batch_item=False,
+                patch_success=True
             )
+            # --- END MIGRATION 2/3 ---
 
         # ============================================
         # KEEP: Prepare user input (your existing logic)
@@ -168,12 +190,25 @@ async def edit_json(req: EditRequest):
             "error": None
         }, config=config)
         
-        db.save_version(
-            conversation_id=conv_id,
+        # db.save_version(
+        #     conversation_id=conv_id,
+        #     inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
+        #     data=result["json_data"],
+        #     modification_summary=result.get("response", "Modified data")[:200]  # Truncate if long
+        # )
+        # --- START MIGRATION 3/3 ---
+        # Remark: This final save is redundant if the graph ends in save_json_node, 
+        # but it acts as a safety checkpoint for the API layer.
+        db.save_modification( # Replaced save_version
+            item_id=conv_id,
             inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=result["json_data"],
-            modification_summary=result.get("response", "Modified data")[:200]  # Truncate if long
+            instruction=result.get("response", "Final result saved")[:200], # Use response as instruction/summary
+            patch_operations=None, # The patch was already saved by the graph node
+            is_batch_item=False,
+            patch_success=True
         )
+        # --- END MIGRATION 3/3 ---
 
         # Save result (to file) => for backward compatibility
         write_json(result["json_data"], str(JSON_TEMPLATE_PATH))
@@ -286,12 +321,23 @@ async def edit_noael_form(req: NOAELFormRequest):
 
         conversation_id = req.conversation_id or str(uuid.uuid4())
         message = "✅ NOAEL updated successfully (form-based, no LLM)"
-        db.save_version(
-            conversation_id=conversation_id,
+        # db.save_version(
+        #     conversation_id=conversation_id,
+        #     inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
+        #     data=current_json,
+        #     modification_summary=message
+        # )
+        # --- START MIGRATION ---
+        db.save_modification( # Replaced db.save_version
+            item_id=conversation_id,
             inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=current_json,
-            modification_summary=message
+            instruction=message, # Replaced modification_summary
+            patch_operations=None, # No patch needed (Full data is saved)
+            is_batch_item=False,
+            patch_success=True
         )
+        # --- END MIGRATION ---
 
         # Save result (to file) => for backward compatibility
         write_json(current_json, str(JSON_TEMPLATE_PATH))
@@ -354,12 +400,23 @@ async def edit_dap_form(req: DAPFormRequest):
         
         conversation_id = req.conversation_id or str(uuid.uuid4())
         message = "✅ DAP updated successfully (form-based, no LLM)"
-        db.save_version(
-            conversation_id=conversation_id,
+        # db.save_version(
+        #     conversation_id=conversation_id,
+        #     inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
+        #     data=current_json,
+        #     modification_summary=message
+        # )
+        # --- START MIGRATION ---
+        db.save_modification( # Replaced db.save_version
+            item_id=conversation_id,
             inci_name= (req.inci_name or current_json.get('inci', 'INCI_NAME')),
             data=current_json,
-            modification_summary=message
+            instruction=message, # Replaced modification_summary
+            patch_operations=None, # No patch needed (Full data is saved)
+            is_batch_item=False,
+            patch_success=True
         )
+        # --- END MIGRATION ---
 
         # Save result (to file) => for backward compatibility
         write_json(current_json, str(JSON_TEMPLATE_PATH))
@@ -478,12 +535,23 @@ async def reset_version(conversation_id: str, version: str):
     json_data = data.get('data', {})
     message = f"Reset to version {version} for {conversation_id} successful"
 
-    db.save_version(
-        conversation_id=conversation_id,
+    # db.save_version(
+    #     conversation_id=conversation_id,
+    #     inci_name= json_data.get('inci', 'INCI_NAME'),
+    #     data=json_data,
+    #     modification_summary=message
+    # )
+    # --- START MIGRATION ---
+    db.save_modification( # Replaced db.save_version
+        item_id=conversation_id,
         inci_name= json_data.get('inci', 'INCI_NAME'),
         data=json_data,
-        modification_summary=message
+        instruction=message, # Replaced modification_summary
+        patch_operations=None, # Reset is a full data replace, not a patch
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION ---
 
     write_json(json_data, str(JSON_TEMPLATE_PATH))
     return {

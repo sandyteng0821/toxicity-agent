@@ -56,12 +56,24 @@ def fast_update_node(state):
     response_msg = f"✅ Updated toxicology data for {current_inci}: {', '.join(toxicology_sections.keys())}"
     
     # Save to DB with patches
-    db.save_version(
-        conversation_id=conversation_id,
+    # db.save_version(
+    #     conversation_id=conversation_id,
+    #     inci_name=state.get("current_inci", "INCI_NAME"),
+    #     data=updated_json,
+    #     modification_summary=f"fastpath update: Updated {', '.join(toxicology_sections.keys())}",
+    #     patch_operations=[p.model_dump() for p in patches]
+    # )
+
+    db.save_modification(
+        item_id=conversation_id, # Replaces conversation_id
         inci_name=state.get("current_inci", "INCI_NAME"),
         data=updated_json,
-        modification_summary=f"fastpath update: Updated {', '.join(toxicology_sections.keys())}",
-        patch_operations=[p.model_dump() for p in patches]
+        instruction=state["user_input"], # Use the full user input for the audit summary base
+        patch_operations=[p.model_dump() for p in patches],
+        # Mandatory Audit Flags for Single Edit
+        is_batch_item=False, 
+        patch_success=True, # Fast path is generally considered successful
+        fallback_used=False # Not applicable in the fast path
     )
     
     ai_message = AIMessage(content=response_msg)
@@ -69,8 +81,8 @@ def fast_update_node(state):
     state["json_data"] = updated_json
     state["response"] = response_msg
     state["messages"] = [ai_message]
-    state["last_patches"] = patches # ✨ NEW: Track patches
-    state["fast_patches"] = patches # ✨ NEW: Track patches
+    state["last_patches"] = [p.model_dump() for p in patches] 
+    state["fast_patches"] = [p.model_dump() for p in patches]
     state["fast_done"] = True
     
     return state

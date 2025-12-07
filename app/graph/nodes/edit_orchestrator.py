@@ -97,12 +97,21 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
         response_msg = f"✅ Updated toxicology data for {current_inci}: {', '.join(toxicology_sections.keys())}"
         
         # Save to DB with patches
-        db.save_version(
-            conversation_id=conversation_id,
+        # db.save_version(
+        #     conversation_id=conversation_id,
+        #     inci_name=state.get("current_inci", "INCI_NAME"),
+        #     data=updated_json,
+        #     modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
+        #     patch_operations=[p.model_dump() for p in patches]
+        # )
+        db.save_modification(
+            item_id=conversation_id, # Replaced conversation_id
             inci_name=state.get("current_inci", "INCI_NAME"),
             data=updated_json,
-            modification_summary=f"Updated {', '.join(toxicology_sections.keys())}",
-            patch_operations=[p.model_dump() for p in patches]
+            instruction=state["user_input"], # Used user_input for the audit instruction
+            patch_operations=[p.model_dump() for p in patches],
+            is_batch_item=False, # Single edit
+            patch_success=True # Successful update
         )
         
         ai_message = AIMessage(content=response_msg)
@@ -141,14 +150,23 @@ def llm_edit_node_with_patch(state: JSONEditState) -> JSONEditState:
             response_msg = f"✅ Applied {patch_op.op} operation at {patch_op.path} for {current_inci}"
             
             # Save to DB with patch
-            db.save_version(
-                conversation_id=conversation_id,
+            # db.save_version(
+            #     conversation_id=conversation_id,
+            #     inci_name=state.get("current_inci", "INCI_NAME"),
+            #     data=updated_json,
+            #     modification_summary=f"{patch_op.op} at {patch_op.path}",
+            #     patch_operations=[patch_op.model_dump()]
+            # )
+            db.save_modification(
+                item_id=conversation_id, # Replaced conversation_id
                 inci_name=state.get("current_inci", "INCI_NAME"),
                 data=updated_json,
-                modification_summary=f"{patch_op.op} at {patch_op.path}",
-                patch_operations=[patch_op.model_dump()]
+                instruction=state["user_input"], # Used user_input for the audit instruction
+                patch_operations=[patch_op.model_dump()],
+                is_batch_item=False, # Single edit
+                patch_success=True # Successful update
             )
-            
+
             ai_message = AIMessage(content=response_msg)
             
             state["json_data"] = updated_json

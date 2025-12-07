@@ -58,14 +58,18 @@ def test_patches():
 def test_save_version_with_patches(test_db, test_data, test_patches):
     """Test saving a version with patch operations"""
     
+    # --- START MIGRATION 1/5 ---
     # Save with patches
-    version = test_db.save_version(
-        conversation_id="test-001",
+    version = test_db.save_modification( # Replaced save_version
+        item_id="test-001",              # Replaced conversation_id
         inci_name="test-inci-001",
         data=test_data,
-        modification_summary="Test save with patches",
-        patch_operations=test_patches
+        instruction="Test save with patches", # Replaced modification_summary
+        patch_operations=test_patches,
+        is_batch_item=False,             # Added flag
+        patch_success=True               # Added flag
     )
+    # --- END MIGRATION 1/5 ---
     
     # Verify version was saved
     assert version.id is not None
@@ -78,14 +82,18 @@ def test_save_version_with_patches(test_db, test_data, test_patches):
 def test_retrieve_version_patches(test_db, test_data, test_patches):
     """Test retrieving patch operations from a version"""
     
+    # --- START MIGRATION 2/5 ---
     # First save a version with patches
-    test_db.save_version(
-        conversation_id="test-002",
+    test_db.save_modification( # Replaced save_version
+        item_id="test-002",
         inci_name="test-inci-002",
         data=test_data,
-        modification_summary="Test save with patches",
-        patch_operations=test_patches
+        instruction="Test save with patches",
+        patch_operations=test_patches,
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION 2/5 ---
     
     # Retrieve patches
     retrieved_patches = test_db.get_version_patches("test-002")
@@ -102,23 +110,31 @@ def test_retrieve_version_patches(test_db, test_data, test_patches):
 def test_modification_history_with_patches(test_db, test_data, test_patches):
     """Test getting modification history with patch details"""
     
-    # Save multiple versions with patches
-    test_db.save_version(
-        conversation_id="test-003",
+    # --- START MIGRATION 3a/5 ---
+    # Save multiple versions with patches (Version 1)
+    test_db.save_modification( # Replaced save_version
+        item_id="test-003",
         inci_name="test-inci-003",
         data=test_data,
-        modification_summary="First update",
-        patch_operations=test_patches
+        instruction="First update",
+        patch_operations=test_patches,
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION 3a/5 ---
     
-    # Save another version
-    test_db.save_version(
-        conversation_id="test-003",
+    # --- START MIGRATION 3b/5 ---
+    # Save another version (Version 2)
+    test_db.save_modification( # Replaced save_version
+        item_id="test-003",
         inci_name="test-inci-003",
         data=test_data,
-        modification_summary="Second update",
-        patch_operations=test_patches
+        instruction="Second update",
+        patch_operations=test_patches,
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION 3b/5 ---
     
     # Get history with patches
     history = test_db.get_modification_history_with_patches("test-003")
@@ -135,14 +151,18 @@ def test_modification_history_with_patches(test_db, test_data, test_patches):
 def test_save_version_without_patches(test_db, test_data):
     """Test saving a version without patches (backward compatibility)"""
     
+    # --- START MIGRATION 4/5 ---
     # Save without patches
-    version = test_db.save_version(
-        conversation_id="test-004",
+    version = test_db.save_modification( # Replaced save_version
+        item_id="test-004",
         inci_name="test-inci-004",
         data=test_data,
-        modification_summary="Test save without patches"
-        # No patch_operations parameter
+        instruction="Test save without patches",
+        patch_operations=None, # Explicitly pass None or omit (if default is None)
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION 4/5 ---
     
     # Verify
     assert version.id is not None
@@ -179,22 +199,26 @@ if __name__ == "__main__":
     
     # Test 1: Save with patches
     print("Test 1: Save with patches")
-    version = db.save_version(
-        conversation_id="manual-test-001",
+    # --- START MIGRATION 5/5 (Manual Run) ---
+    version = db.save_modification( # Replaced save_version
+        item_id="manual-test-001",
         inci_name="manual-test-inci-001",
         data=test_data,
-        modification_summary="Test save with patches",
-        patch_operations=test_patches
+        instruction="Test save with patches",
+        patch_operations=test_patches,
+        is_batch_item=False,
+        patch_success=True
     )
+    # --- END MIGRATION 5/5 ---
     print(f"✅ Saved version {version.id}")
     print(f"Patch operations: {version.patch_operations}\n")
     
-    # Test 2: Retrieve patches
+    # Test 2: Retrieve patches (No change needed here as it calls get_version_patches)
     print("Test 2: Retrieve patches")
     retrieved_patches = db.get_version_patches("manual-test-001")
     print(f"✅ Retrieved patches: {retrieved_patches}\n")
     
-    # Test 3: Get history with patches
+    # Test 3: Get history with patches (No change needed here as it calls get_modification_history_with_patches)
     print("Test 3: Get history with patches")
     history = db.get_modification_history_with_patches("manual-test-001")
     print(f"✅ History with patches: {json.dumps(history, indent=2)}\n")
